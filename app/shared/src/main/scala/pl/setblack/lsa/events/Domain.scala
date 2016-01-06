@@ -22,14 +22,16 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
     this.eventsHistory
   }
 
-  def receiveEvent(event: Event):Boolean = {
+  def receiveEvent(event: Event, eventContext :EventContext):Boolean = {
     if (!seenEvent(event)) {
        println("received event : " + event.id +" from : " + event.sender )
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
       println ("contains:" + seenEvent(event))
-      eventsHistory += event
-      processDomain(domainState, event)
+      if (!event.transient) {
+        eventsHistory += event
+      }
+      processDomain(domainState, event, eventContext)
       listeners.foreach(l => l.onDomainChanged(domainState, event))
       true
     } else {
@@ -43,5 +45,5 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   }
 
 
-  def processDomain(state: O, event: Event)
+  def processDomain(state: O, event: Event, eventContext: EventContext )
 }

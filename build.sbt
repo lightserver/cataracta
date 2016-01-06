@@ -9,7 +9,7 @@ name := "cataracta"
 organization := "pl.setblack.lsa"
 scalaVersion := "2.11.7"
 
-version := "0.9"
+version := "0.91"
 
 scalaJSStage in Global := FastOptStage
 
@@ -19,7 +19,7 @@ val app = crossProject.settings(
   scalaVersion := "2.11.7",
   name := "cataracta",
   organization := "pl.setblack.lsa",
-  version := "0.9",
+  version := "0.91",
   unmanagedSourceDirectories in Compile +=
     baseDirectory.value  / "shared" / "main" / "scala",
 

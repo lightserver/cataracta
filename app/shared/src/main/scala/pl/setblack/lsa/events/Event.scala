@@ -6,9 +6,10 @@ package pl.setblack.lsa.events
  * Events  go to Domains.
  */
 case class Event(
-                val content: String,
-                val id: Long,
-                val sender: Long) {
+                content: String,
+                id: Long,
+                sender: Long,
+                transient :Boolean = false) {
 }
 
 

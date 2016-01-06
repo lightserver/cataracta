@@ -15,5 +15,8 @@ object ControlEvent {
       read[ControlEvent](ev)
   }
 
-  def writeEvent(ev :ControlEvent) : String = write[ControlEvent](ev)
+  def writeEvent(ev :ControlEvent) : String = {
+    println(s" writing event ${ev}")
+    write[ControlEvent](ev)
+  }
 }

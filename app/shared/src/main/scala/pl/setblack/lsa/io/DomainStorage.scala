@@ -1,6 +1,6 @@
 package pl.setblack.lsa.io
 
-import pl.setblack.lsa.events.{Domain, Event}
+import pl.setblack.lsa.events.{NullContext, Domain, Event}
 
 import upickle.default._
 
@@ -34,11 +34,12 @@ class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
  }
 
   def loadEvents(domain: Domain[_]):Long = {
+    val ctx = new NullContext
     sysStorage.load(getSummaryPath()).map (
       storedNumber => {
         val maxEvent = storedNumber.toInt
         for(  i  <- 0 to maxEvent ){
-            loadEvent(i).foreach( e => domain.receiveEvent(e))
+            loadEvent(i).foreach( e => domain.receiveEvent(e,ctx))
         }
         saveCounter = maxEvent
         saveCounter

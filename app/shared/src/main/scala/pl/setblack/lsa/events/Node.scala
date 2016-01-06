@@ -57,19 +57,19 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
 
-  def sendEvent(content: String, domain: Seq[String]): Unit = {
+  def sendEvent(content: String, domain: Seq[String], transient : Boolean = false): Unit = {
     val adr = Address(All, domain)
     println("sending event to:" + adr.toString)
-    sendEvent(content, adr)
+    sendEvent(content, adr, transient)
   }
 
   /**
    * Dispatch event from this Node to ... other Node (or not).
    */
-  def sendEvent(content: String, adr: Address): Unit = {
+  def sendEvent(content: String, adr: Address, transient : Boolean): Unit = {
     this.id.onSuccess {
         case nodeid:Long => {
-          val event = new Event(content, getNextEventId(), nodeid)
+          val event = new Event(content, getNextEventId(), nodeid, transient)
           this.sendEvent(event, adr)
         }
 
@@ -117,6 +117,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   def createClientIdMessage(clientId: Long): Future[NodeMessage] = {
     this.id.map {
       case nodeId:Long => {
+        println(s" NodeMessage for clientId ${clientId}")
       val event = new Event(write[ControlEvent](RegisteredClient(clientId,nodeId)), 1, nodeId)
       NodeMessage(Address(System), event)
     }
@@ -228,8 +229,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   private def sendEvenToDomain(event: Event, domain: Domain[_]) = {
     println("passing event to domain:" + domain.path)
-    if (domain.receiveEvent(event)) {
-      saveEvent(event, domain.path)
+    val eventContext  =new NodeEventContext( this, event.sender)
+    if (domain.receiveEvent(event, eventContext)) {
+      if ( !event.transient) {
+        saveEvent(event, domain.path)
+      }
     }
   }
 
