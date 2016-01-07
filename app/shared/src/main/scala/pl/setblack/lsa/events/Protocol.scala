@@ -5,6 +5,8 @@ package pl.setblack.lsa.events
  */
 trait Protocol {
     def send ( msg:NodeMessage): Unit
+
+
 }
 
 

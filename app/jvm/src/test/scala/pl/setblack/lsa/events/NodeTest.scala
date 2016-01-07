@@ -36,7 +36,7 @@ class NodeTest extends org.scalatest.FunSpec {
       val history = new HistoryListener
       node1.registerMessageListener(history)
       val testMessage = new NodeMessage(new Address(new Target(1), Seq()), new Event("testik",1,0));
-      node1.receiveMessage(testMessage)
+      node1.receiveMessage(testMessage, new ConnectionData())
       assert( history.values(0) == "testik")
     }
 
@@ -50,17 +50,17 @@ class NodeTest extends org.scalatest.FunSpec {
       node1.registerMessageListener(history)
 
       it("should send message to Node1") {
-        node1.sendEvent("testLocal", node1Addr)
+        node1.sendEvent("testLocal", node1Addr, true)
         wait(node1)
         assert( history.values(0) == "testLocal")
       }
       it("should send message to Node1 via All") {
-        node1.sendEvent("testLocal", nodeAllAddr)
+        node1.sendEvent("testLocal", nodeAllAddr, true)
         wait(node1)
         assert( history.values(0) == "testLocal")
       }
       it("should send message to Node1 via Local") {
-        node1.sendEvent("testLocal", nodeLocalAddr)
+        node1.sendEvent("testLocal", nodeLocalAddr, true)
         assert( history.values(0) == "testLocal")
       }
     }
@@ -88,7 +88,7 @@ class NodeTest extends org.scalatest.FunSpec {
 
 
       it("should send message") {
-        node1.sendEvent("test", node2Addr)
+        node1.sendEvent("test", node2Addr, true)
         wait(node1)
         assert( history.values(0) == "test")
       }
@@ -109,7 +109,7 @@ class NodeTest extends org.scalatest.FunSpec {
     node1.registerDomain(Seq("default"), domain)
 
     it("should send message to Node1") {
-      node1.sendEvent("testLocal", nodeLocalAddr)
+      node1.sendEvent("testLocal", nodeLocalAddr, false)
       wait(node1)
       assert(domain.getState()(0) == "testLocal")
     }

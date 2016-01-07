@@ -6,9 +6,14 @@ abstract class EventContext {
   def sendLocal ( eventContent : String, path : Seq[String]) : Unit
 
   def isSecure () : Boolean
+
+  def connectionData : ConnectionData
 }
 
-class NodeEventContext(private val parentNode : Node, private val sender: Long) extends EventContext{
+class NodeEventContext(
+                        private val parentNode : Node,
+                        private val sender: Long,
+                      val connectionData: ConnectionData) extends EventContext{
    override def reply( eventContent : String, path : Seq[String]) : Unit = {
       val adr = Address(Target(sender), path)
         parentNode.sendEvent(  eventContent, adr, true)
@@ -27,6 +32,9 @@ class NodeEventContext(private val parentNode : Node, private val sender: Long) 
 }
 
 class NullContext extends EventContext{
+
+  override val connectionData = new ConnectionData()
+
   override def reply( eventContent : String, path : Seq[String]) : Unit = {
     println("I will do nothing")
   }
@@ -36,4 +44,6 @@ class NullContext extends EventContext{
   }
 
   override def isSecure() : Boolean = true
+
+
 }

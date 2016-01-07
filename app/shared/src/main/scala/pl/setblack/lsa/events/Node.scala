@@ -208,18 +208,18 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   /**
    * Node receives message here.
    */
-  def receiveMessage(msg: NodeMessage) = {
-    receiveMessageLocal(msg)
+  def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
+    receiveMessageLocal(msg,connectionData)
     reroute(msg)
   }
 
-  def receiveMessageLocal(msg: NodeMessage) = {
+  def receiveMessageLocal(msg: NodeMessage, connectionData: ConnectionData ) = {
     println("received local message")
     messageListeners foreach (listener => listener.onMessage(msg))
     if (msg.destination.target == System) {
       processSysMessage(msg.event)
     } else {
-      filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v))
+      filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v,connectionData))
     }
   }
 
@@ -227,9 +227,9 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     domainStorages.get(path).foreach(store => store.saveEvent(event))
   }
 
-  private def sendEvenToDomain(event: Event, domain: Domain[_]) = {
+  private def sendEvenToDomain(event: Event, domain: Domain[_], connectionData: ConnectionData) = {
     println("passing event to domain:" + domain.path)
-    val eventContext  =new NodeEventContext( this, event.sender)
+    val eventContext  =new NodeEventContext( this, event.sender, connectionData)
     if (domain.receiveEvent(event, eventContext)) {
       if ( !event.transient) {
         saveEvent(event, domain.path)
