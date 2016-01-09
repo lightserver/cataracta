@@ -8,6 +8,7 @@ import upickle.default._
 
 class FileStore(val diskPath: String) extends Storage {
   override def save(value: String, path: Seq[String]): Unit = {
+    println(s"writing under path ${path}")
     val fsPath = createPath(path)
     if (!Files.exists(fsPath.getParent)) {
       Files.createDirectories(fsPath.getParent)
@@ -15,7 +16,7 @@ class FileStore(val diskPath: String) extends Storage {
     val output = Files.newBufferedWriter(fsPath, StandardOpenOption.CREATE )
     output.write(value)
     output.close()
-
+  println(s"written value ${value]}")
   }
 
   override def load(path: Seq[String]): Option[String] = {
