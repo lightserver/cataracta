@@ -24,10 +24,10 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   def receiveEvent(event: Event, eventContext :EventContext):Boolean = {
     if (!seenEvent(event)) {
-       println("received event : " + event.id +" from : " + event.sender )
+
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
-      println ("contains:" + seenEvent(event))
+
       if (!event.transient) {
         eventsHistory += event
       }

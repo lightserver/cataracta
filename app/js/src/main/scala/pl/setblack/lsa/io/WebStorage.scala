@@ -10,7 +10,7 @@ class WebStorage extends Storage with MessageListener{
   override def save(value: String, path: Seq[String]): Unit = {
 
     dom.localStorage.setItem(path.toString(), value)
-    println("stored in " + path.toString() + "=>" + value )
+
   }
 
   override def load(path: Seq[String]): Option[String] = {

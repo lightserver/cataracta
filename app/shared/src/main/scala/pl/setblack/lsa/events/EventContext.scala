@@ -25,7 +25,7 @@ class NodeEventContext(
   }
 
   override def isSecure() : Boolean = {
-    println("checking secure of ")
+
     parentNode.id.value.get.get == sender
   }
 
@@ -36,11 +36,11 @@ class NullContext extends EventContext{
   override val connectionData = new ConnectionData()
 
   override def reply( eventContent : String, path : Seq[String]) : Unit = {
-    println("I will do nothing")
+
   }
 
   override def sendLocal( eventContent : String, path : Seq[String]) : Unit = {
-    println("I will do nothing")
+
   }
 
   override def isSecure() : Boolean = true

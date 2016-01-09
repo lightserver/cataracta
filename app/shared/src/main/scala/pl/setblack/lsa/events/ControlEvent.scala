@@ -16,7 +16,7 @@ object ControlEvent {
   }
 
   def writeEvent(ev :ControlEvent) : String = {
-    println(s" writing event ${ev}")
+
     write[ControlEvent](ev)
   }
 }

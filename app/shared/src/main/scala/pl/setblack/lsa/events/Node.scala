@@ -35,7 +35,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
       kv => this.domainStorages.get(kv._1).foreach(
         ds => {
           this.nextEventId += ds.loadEvents(kv._2)
-          println(s"-----next event id is:" + this.nextEventId)
+
         }
       )
     )
@@ -77,13 +77,13 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private def sendEvent(event: Event, adr: Address): Unit = {
-    println(s"will  send event ${event} to ${adr}")
+
     this.id onSuccess {
       case nodeId:Long => {
-        println(s" sending event ${event} to ${adr}")
+
         getConnectionsForAddress(adr) onSuccess {
           case seq => {
-             println("got connection...")
+
             seq.foreach(nc => nc.send(new NodeMessage(adr, event, Seq(nodeId))))
           }
         }
@@ -93,14 +93,14 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private[events] def getConnectionsForAddress(adr: Address): Future[Seq[NodeConnection]] = {
-    println(s"looking for  connections ${adr}")
+
     val result = Promise[Seq[NodeConnection]]
       adr.target match {
       case Local => {
-        println("referencing local...")
+
         this.loopConnection onSuccess {
           case nc: NodeConnection => {
-            println("got local NC")
+
             result.success(Seq(nc))
 
           }
@@ -117,7 +117,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   def createClientIdMessage(clientId: Long): Future[NodeMessage] = {
     this.id.map {
       case nodeId:Long => {
-        println(s" NodeMessage for clientId ${clientId}")
+
       val event = new Event(write[ControlEvent](RegisteredClient(clientId,nodeId)), 1, nodeId)
       NodeMessage(Address(System), event)
     }
@@ -132,7 +132,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     val futureConnection = Promise[NodeConnection]
     futureId onSuccess {
       case nodeId: Long => {
-        println(s"added future connection ${nodeId}")
+
 
         val connection = new NodeConnection(nodeId, protocol)
         this.connections = this.connections + (nodeId -> connection)
@@ -190,7 +190,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
         val routedMsg = msg.copy(route = msg.route :+ nodeId)
         this.connections.values.filter(p => !routedMsg.route.contains(p.targetId))
         .foreach(nc => {
-        println("rerouted by:" + nodeId + " to: " + nc.targetId)
+
         nc.send(routedMsg)
       })
       }
@@ -201,7 +201,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   private def filterDomains(path: Seq[String]): Seq[Domain[_]] = {
     val res = this.domains
       .filter((v) => path.startsWith(v._1)).values.toSeq
-    println(s"filtered domains:${res}")
+
     res
   }
 
@@ -214,7 +214,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   def receiveMessageLocal(msg: NodeMessage, connectionData: ConnectionData ) = {
-    println("received local message")
+
     messageListeners foreach (listener => listener.onMessage(msg))
     if (msg.destination.target == System) {
       processSysMessage(msg.event)
@@ -228,7 +228,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private def sendEvenToDomain(event: Event, domain: Domain[_], connectionData: ConnectionData) = {
-    println("passing event to domain:" + domain.path)
+
     val eventContext  =new NodeEventContext( this, event.sender, connectionData)
     if (domain.receiveEvent(event, eventContext)) {
       if ( !event.transient) {
@@ -257,7 +257,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
       case nodeId: Long =>
         val event = Event(ControlEvent.writeEvent(ResyncDomain(nodeId, path, domain.recentEvents, syncBack)), 0, nodeId)
         val adr = Address(System, path)
-        println("sending event:" + event)
+
         this.sendEvent(event, adr)
     }
 

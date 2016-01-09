@@ -11,7 +11,7 @@ class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
 
   def saveEvent(event: Event):Unit = {
     val storePath = getStorePath( nextCounter )
-    println("storing in "+storePath+" event:" + event )
+
     sysStorage.save( write[Event]( event) , storePath)
 
     sysStorage.save( saveCounter.toString, getSummaryPath())
@@ -26,7 +26,7 @@ class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
    val storePath = getStorePath( number )
    sysStorage.load(storePath) match {
      case Some(s)  => {
-       println("loading event ..............." + number)
+
        Some(read[Event](s))
      }
      case   _ => None

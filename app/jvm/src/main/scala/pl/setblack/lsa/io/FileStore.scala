@@ -24,7 +24,7 @@ class FileStore(val diskPath: String) extends Storage {
       val input = Files.newBufferedReader(fsPath)
       val line = input.readLine()
       input.close()
-      println("I have read:"+ line)
+
       Some(line)
     } else {
       None
