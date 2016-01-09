@@ -16,7 +16,7 @@ class FileStore(val diskPath: String) extends Storage {
     val output = Files.newBufferedWriter(fsPath, StandardOpenOption.CREATE )
     output.write(value)
     output.close()
-  println(s"written value ${value]}")
+  println(s"written value ${value}")
   }
 
   override def load(path: Seq[String]): Option[String] = {
