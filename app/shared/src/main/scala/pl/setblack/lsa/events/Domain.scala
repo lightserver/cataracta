@@ -1,10 +1,5 @@
 package pl.setblack.lsa.events
 
-import pl.setblack.lsa.io.Storage
-import upickle.default._
-
-import scala.collection.mutable.ArrayBuffer
-
 abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
 
@@ -12,11 +7,11 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   var listeners = Seq[DomainListener[O]]()
   val eventsHistory = scala.collection.mutable.ArrayBuffer.empty[Event]
 
-  def getSerializer() : Option[DomainSerializer[O]] = None
+  def getSerializer : Option[DomainSerializer[O]] = None
 
   def processDomain(state: O, event: Event, eventContext: EventContext )
 
-  def getState() = domainState
+  def getState = domainState
 
   private def seenEvent(event: Event ) : Boolean = {
     recentEvents.get(event.sender).getOrElse(Seq()).contains( event.id)

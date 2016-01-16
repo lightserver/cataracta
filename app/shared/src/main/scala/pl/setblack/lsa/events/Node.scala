@@ -156,11 +156,31 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     })
   }
 
+
+  private def useSerializer[O](syncEvent : ResyncDomain, domain: Domain[O] ) : Option[DomainSerializer[O]] = {
+      if( syncEvent.recentEvents.isEmpty ) {
+          domain.getSerializer
+      } else {
+        None
+      }
+  }
+
+  private def sendRestoreDomain[X  ](domain: Domain[X], serializer: DomainSerializer[X], address: Address) = {
+    val serialized = serializer.write(domain.getState)
+
+  }
+
   private def resyncDomain(sync: ResyncDomain): Unit = {
     val address = Address(Target(sync.clientId), sync.domain)
 
-    this.filterDomains(sync.domain).map(domain => {
-      domain.eventsToResend(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
+    this.filterDomains(sync.domain).map( (domain:Domain[_]) => {
+      val castedDomain = domain.asInstanceOf[Domain[Any]]
+      useSerializer(sync, castedDomain) match {
+        case  None => domain.eventsToResend(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
+        case Some(serializer ) => sendRestoreDomain( castedDomain, serializer, address)
+      }
+
+
       if (sync.syncBack) {
         this.id onSuccess {
           case nodeId:Long =>
@@ -175,12 +195,15 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     })
   }
 
+  def restoreDomain(serialized: RestoreDomain): Unit = ???
+
   def processSysMessage(ev: Event): Unit = {
     val ctrlEvent = read[ControlEvent](ev.content)
     ctrlEvent match {
       //does not make any sense now...
       case RegisteredClient(clientId, serverId) => println("registered as: " + id)
       case sync: ResyncDomain => resyncDomain(sync)
+      case serialized : RestoreDomain => restoreDomain(serialized)
     }
   }
 
@@ -238,7 +261,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   def getDomainObject(path: Seq[String]) = {
-    domains.get(path).get.getState()
+    domains.get(path).get.getState
   }
 
   def getNextEventId(): Long = {

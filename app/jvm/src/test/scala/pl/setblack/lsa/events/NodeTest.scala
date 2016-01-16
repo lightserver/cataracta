@@ -111,7 +111,7 @@ class NodeTest extends org.scalatest.FunSpec {
     it("should send message to Node1") {
       node1.sendEvent("testLocal", nodeLocalAddr, false)
       wait(node1)
-      assert(domain.getState()(0) == "testLocal")
+      assert(domain.getState(0) == "testLocal")
     }
   }
 }

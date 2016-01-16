@@ -7,6 +7,7 @@ sealed trait ControlEvent {
 
 case class RegisteredClient(val clientId :Long, val senderNodeId:Long) extends ControlEvent
 case class ResyncDomain( val clientId:Long,val domain: Seq[String], val recentEvents : Map[Long, Seq[Long]], val syncBack: Boolean ) extends ControlEvent
+case class RestoreDomain( val domain: Seq[String], val serialized: String ) extends ControlEvent
 
 
 
