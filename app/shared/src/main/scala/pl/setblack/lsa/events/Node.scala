@@ -160,7 +160,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     val address = Address(Target(sync.clientId), sync.domain)
 
     this.filterDomains(sync.domain).map(domain => {
-      domain.resendEvents(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
+      domain.eventsToResend(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
       if (sync.syncBack) {
         this.id onSuccess {
           case nodeId:Long =>

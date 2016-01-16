@@ -12,13 +12,17 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   var listeners = Seq[DomainListener[O]]()
   val eventsHistory = scala.collection.mutable.ArrayBuffer.empty[Event]
 
+  def getSerializer() : Option[DomainSerializer[O]] = None
+
+  def processDomain(state: O, event: Event, eventContext: EventContext )
+
   def getState() = domainState
 
   private def seenEvent(event: Event ) : Boolean = {
     recentEvents.get(event.sender).getOrElse(Seq()).contains( event.id)
   }
 
-  def resendEvents(clientId: Long, recentEvents: Map[Long, Seq[Long]]): Seq[Event] = {
+  def eventsToResend(clientId: Long, recentEvents: Map[Long, Seq[Long]]): Seq[Event] = {
     this.eventsHistory
   }
 
@@ -45,5 +49,4 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   }
 
 
-  def processDomain(state: O, event: Event, eventContext: EventContext )
 }
