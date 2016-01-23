@@ -158,8 +158,10 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
 
   private def useSerializer[O](syncEvent : ResyncDomain, domain: Domain[O] ) : Option[DomainSerializer[O]] = {
+
       if( syncEvent.recentEvents.isEmpty ) {
-          domain.getSerializer
+        println(s"going to use serializer  because of empty events in ${domain.path} from ${syncEvent.clientId}" )
+        domain.getSerializer
       } else {
         None
       }
@@ -167,7 +169,14 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   private def sendRestoreDomain[X  ](domain: Domain[X], serializer: DomainSerializer[X], address: Address) = {
     val serialized = serializer.write(domain.getState)
-
+    this.id onSuccess {
+      case nodeId:Long =>
+        val event = Event(write[ControlEvent](RestoreDomain(domain.path, serialized)), 0, nodeId)
+        val msg = new NodeMessage(Address(System, domain.path), event, Seq(nodeId))
+        this.getConnectionsForAddress(address) onSuccess {
+          case seq => seq.foreach(nc => nc.send(msg))
+        }
+    }
   }
 
   private def resyncDomain(sync: ResyncDomain): Unit = {
@@ -180,7 +189,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
         case Some(serializer ) => sendRestoreDomain( castedDomain, serializer, address)
       }
 
-
       if (sync.syncBack) {
         this.id onSuccess {
           case nodeId:Long =>
@@ -190,21 +198,36 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
               case seq => seq.foreach(nc => nc.send(msg))
             }
         }
-
       }
     })
   }
 
-  def restoreDomain(serialized: RestoreDomain): Unit = ???
+  private def restoreDomain(serialized: RestoreDomain): Unit = {
+    this.filterDomains(serialized.domain).foreach( domain  => {
+      domain.getSerializer match {
+        case Some(serializer) => {
+          val castedDomain = domain.asInstanceOf[Domain[Any]]
+          castedDomain.setState( serializer.read(serialized.serialized))
+        }
+        case None => ???
+      }
+    })
+  }
 
   def processSysMessage(ev: Event): Unit = {
     val ctrlEvent = read[ControlEvent](ev.content)
-    ctrlEvent match {
-      //does not make any sense now...
-      case RegisteredClient(clientId, serverId) => println("registered as: " + id)
-      case sync: ResyncDomain => resyncDomain(sync)
-      case serialized : RestoreDomain => restoreDomain(serialized)
+    this.id onSuccess  {
+      case nodeId : Long =>
+        if ( ev.sender != nodeId) {
+          ctrlEvent match {
+            //does not make any sense now...
+            case RegisteredClient(clientId, serverId) => println("registered as: " + id)
+            case sync: ResyncDomain => resyncDomain(sync)
+            case serialized : RestoreDomain => restoreDomain(serialized)
+          }
+        }
     }
+
   }
 
   private def reroute(msg: NodeMessage): Unit = {

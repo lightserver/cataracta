@@ -13,6 +13,11 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   def getState = domainState
 
+  def setState( newState : O ) = {
+    domainState = newState
+    listeners.foreach(l => l.onDomainChanged(domainState, None))
+  }
+
   private def seenEvent(event: Event ) : Boolean = {
     recentEvents.get(event.sender).getOrElse(Seq()).contains( event.id)
   }
@@ -31,7 +36,7 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
         eventsHistory += event
       }
       processDomain(domainState, event, eventContext)
-      listeners.foreach(l => l.onDomainChanged(domainState, event))
+      listeners.foreach(l => l.onDomainChanged(domainState, Some(event)))
       true
     } else {
       false
