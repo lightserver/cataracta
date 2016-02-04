@@ -69,7 +69,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   def sendEvent(content: String, adr: Address, transient : Boolean): Unit = {
     this.id.onSuccess {
         case nodeid:Long => {
-          val event = new Event(content, getNextEventId(), nodeid, transient)
+          val event = new Event(content, getNextEventId(), nodeid)
           this.sendEvent(event, adr)
         }
 
@@ -192,7 +192,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
       if (sync.syncBack) {
         this.id onSuccess {
           case nodeId:Long =>
-            val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain,  domain.recentEvents, false)), 0, nodeId)
+            val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain,  domain.recentEvents.mapValues( (s:Seq[Long]) => s.max), false)), 0, nodeId)
             val msg = new NodeMessage(Address(System, sync.domain), event, Seq(nodeId))
             this.getConnectionsForAddress(address) onSuccess {
               case seq => seq.foreach(nc => nc.send(msg))
@@ -276,11 +276,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   private def sendEvenToDomain(event: Event, domain: Domain[_], connectionData: ConnectionData) = {
 
     val eventContext  =new NodeEventContext( this, event.sender, connectionData)
-    if (domain.receiveEvent(event, eventContext)) {
-      if ( !event.transient) {
-        saveEvent(event, domain.path)
-      }
-    }
+    val result = domain.receiveEvent(event, eventContext)
+    if ( result.persist) {
+      saveEvent(event, domain.path)
+    } 
+
   }
 
   def getDomainObject(path: Seq[String]) = {
@@ -301,7 +301,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   private def syncDomain(path: Seq[String], domain: Domain[_], syncBack: Boolean) = {
     this.id.onSuccess {
       case nodeId: Long =>
-        val event = Event(ControlEvent.writeEvent(ResyncDomain(nodeId, path, domain.recentEvents, syncBack)), 0, nodeId)
+        val event = Event(ControlEvent.writeEvent(ResyncDomain(nodeId, path, domain.recentEvents.mapValues((s:Seq[Long])=>s.max), syncBack)), 0, nodeId)
         val adr = Address(System, path)
 
         this.sendEvent(event, adr)

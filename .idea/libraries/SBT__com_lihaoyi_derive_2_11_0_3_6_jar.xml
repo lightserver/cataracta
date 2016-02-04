@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="SBT: com.lihaoyi:derive_2.11:0.3.6:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/derive_2.11/jars/derive_2.11-0.3.6.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/derive_2.11/docs/derive_2.11-0.3.6-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/com.lihaoyi/derive_2.11/srcs/derive_2.11-0.3.6-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

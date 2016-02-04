@@ -9,7 +9,7 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   def getSerializer : Option[DomainSerializer[O]] = None
 
-  def processDomain(state: O, event: Event, eventContext: EventContext )
+  def processDomain(state: O, event: Event, eventContext: EventContext ): Response
 
   def getState = domainState
 
@@ -22,24 +22,26 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
     recentEvents.get(event.sender).getOrElse(Seq()).contains( event.id)
   }
 
-  def eventsToResend(clientId: Long, recentEvents: Map[Long, Seq[Long]]): Seq[Event] = {
+  def eventsToResend(clientId: Long, recentEvents: Map[Long, Long]): Seq[Event] = {
     this.eventsHistory
   }
 
-  def receiveEvent(event: Event, eventContext :EventContext):Boolean = {
+  def receiveEvent(event: Event, eventContext :EventContext):Response = {
     if (!seenEvent(event)) {
 
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
 
-      if (!event.transient) {
-        eventsHistory += event
+
+      val result = processDomain(domainState, event, eventContext)
+      if ( result.persist) {
+          eventsHistory += event
       }
-      processDomain(domainState, event, eventContext)
+
       listeners.foreach(l => l.onDomainChanged(domainState, Some(event)))
-      true
+      result
     } else {
-      false
+      PreviouslySeenEvent
     }
   }
 

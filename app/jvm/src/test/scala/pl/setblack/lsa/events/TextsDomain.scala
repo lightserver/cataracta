@@ -8,5 +8,6 @@ class TextsDomain extends Domain[ArrayBuffer[String]](new ArrayBuffer[String](),
          case x:String => stateObject += x
 
        }
+      DefaultResponse
    }
  }

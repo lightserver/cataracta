@@ -8,8 +8,8 @@ package pl.setblack.lsa.events
 case class Event(
                 content: String,
                 id: Long,
-                sender: Long,
-                transient :Boolean = false) {
+                sender: Long
+                ) {
 }
 
 
