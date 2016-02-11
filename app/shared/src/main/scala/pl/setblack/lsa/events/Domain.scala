@@ -19,7 +19,7 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   }
 
   private def seenEvent(event: Event ) : Boolean = {
-    recentEvents.get(event.sender).getOrElse(Seq()).contains( event.id)
+    recentEvents.getOrElse(event.sender, Seq()).contains( event.id)
   }
 
   def eventsToResend(clientId: Long, recentEvents: Map[Long, Long]): Seq[Event] = {
@@ -46,7 +46,6 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   }
 
   def registerListener(listener: DomainListener[O]): Unit = {
-    println("registering listener")
     listeners = listeners :+ listener
   }
 

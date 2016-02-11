@@ -15,7 +15,6 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
       println("restarting connection")
       restartConnection(connection)
       connection.onopen = {  (event: org.scalajs.dom.raw.Event) ⇒
-        println("will send wanted data")
         connection.send(write[NodeMessageTransport](msg.toTransport))
       }
     } else {
@@ -26,9 +25,7 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
   private def setConnectionHandlers( con : WebSocket ):Unit = {
 
     con.onmessage = { (event : MessageEvent) =>
-      println(s"received to ${event.data.toString}")
       val msg = read[NodeMessageTransport](event.data.toString).toNodeMessage
-      println("converted")
       node.receiveMessage(msg, connectionData.getOrElseUpdate(msg.event.sender, new ConnectionData()))
 
     }
@@ -41,7 +38,6 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
   }
 
   private def restartConnection( old: WebSocket): Unit = {
-    println(s"restarting connection ${old.url}")
     connection = new WebSocket(old.url)
     setConnectionHandlers( connection)
   }
