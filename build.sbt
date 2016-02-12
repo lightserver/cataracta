@@ -19,7 +19,7 @@ val app = crossProject.settings(
   scalaVersion := "2.11.7",
   name := "cataracta",
   organization := "pl.setblack.lsa",
-  version := "0.91",
+  version := "0.92",
   unmanagedSourceDirectories in Compile +=
     baseDirectory.value  / "shared" / "main" / "scala",
 
@@ -33,12 +33,14 @@ val app = crossProject.settings(
 ).jsSettings(
   libraryDependencies ++= Seq(
     "org.scala-js" %%% "scalajs-dom" % "0.8.0",
-    "com.github.japgolly.scalajs-react" %%% "core" % "0.8.3",
-    "com.github.japgolly.scalajs-react" %%% "extra" % "0.8.3",
+    "com.github.japgolly.scalajs-react" %%% "core" % "0.10.4",
+    "com.github.japgolly.scalajs-react" %%% "extra" % "0.10.4",
     "com.lihaoyi" %%% "scalarx" % "0.2.8"
   ),
   // React itself (react-with-addons.js can be react.js, react.min.js, react-with-addons.min.js)
-  jsDependencies += "org.webjars" % "react" % "0.13.1" / "react-with-addons.js" commonJSName "React",
+  jsDependencies ++= Seq(
+    "org.webjars.bower" % "react" % "0.14.3" / "react-with-addons.js" commonJSName "React",
+    "org.webjars.bower" % "react" % "0.14.3" / "react-dom.js" commonJSName "ReactDOM"),
   skip in packageJSDependencies := false ,// creates app-jsdeps.js with the react JS lib inside
   persistLauncher in Compile := true
 ).jvmSettings(
@@ -48,7 +50,7 @@ val app = crossProject.settings(
     "com.typesafe.akka" %% "akka-actor" % "2.3.6",
     "com.typesafe.akka" %% "akka-remote" % "2.3.6",
     "org.scalaz" %% "scalaz-core" % "7.1.2",
-    "com.typesafe.akka" %% "akka-http-experimental" % "1.0",
+    "com.typesafe.akka" %% "akka-http-experimental" % "2.0.1",
     "org.scalatest" %% "scalatest" % "2.2.1" % "test"
   )
 )

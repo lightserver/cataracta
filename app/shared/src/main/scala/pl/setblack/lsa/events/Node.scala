@@ -49,7 +49,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     domains = domains + (path -> domain)
     val domainStore = new DomainStorage(path, storage)
     domainStorages = domainStorages + (path -> domainStore)
-    println(s"have domains:${domains}")
   }
 
   private[events] def hasDomain(path: Seq[String]): Boolean = {
@@ -59,7 +58,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   def sendEvent(content: String, domain: Seq[String], transient : Boolean = false): Unit = {
     val adr = Address(All, domain)
-    println("sending event to:" + adr.toString)
     sendEvent(content, adr, transient)
   }
 
@@ -150,7 +148,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   def registerDomainListener[O](listener: DomainListener[O], path: Seq[String]): Unit = {
     this.filterDomains(path).foreach(x => x match {
       case d: Domain[_] => {
-        println("filtered domain:" + path)
         d.asInstanceOf[Domain[O]].registerListener(listener)
       }
     })
@@ -180,6 +177,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private def resyncDomain(sync: ResyncDomain): Unit = {
+    println(s"resync domain ${sync.clientId}")
     val address = Address(Target(sync.clientId), sync.domain)
 
     this.filterDomains(sync.domain).map( (domain:Domain[_]) => {
@@ -190,8 +188,10 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
       }
 
       if (sync.syncBack) {
+
         this.id onSuccess {
           case nodeId:Long =>
+            println(s"sync back domain server is ${nodeId}")
             val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain,  domain.recentEvents.mapValues( (s:Seq[Long]) => s.max), false)), 0, nodeId)
             val msg = new NodeMessage(Address(System, sync.domain), event, Seq(nodeId))
             this.getConnectionsForAddress(address) onSuccess {
@@ -215,6 +215,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   def processSysMessage(ev: Event): Unit = {
+    println(s"processing sys message ${ev.content}")
     val ctrlEvent = read[ControlEvent](ev.content)
     this.id onSuccess  {
       case nodeId : Long =>
@@ -255,18 +256,20 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
    * Node receives message here.
    */
   def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
-    receiveMessageLocal(msg,connectionData)
-    reroute(msg)
-  }
-
-  def receiveMessageLocal(msg: NodeMessage, connectionData: ConnectionData ) = {
-
-    messageListeners foreach (listener => listener.onMessage(msg))
     if (msg.destination.target == System) {
       processSysMessage(msg.event)
     } else {
-      filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v,connectionData))
+      receiveMessageLocal(msg,connectionData)
+      reroute(msg)
     }
+
+
+
+  }
+
+  def receiveMessageLocal(msg: NodeMessage, connectionData: ConnectionData ) = {
+    messageListeners foreach (listener => listener.onMessage(msg))
+    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v,connectionData))
   }
 
   def saveEvent(event: Event, path: Seq[String]) = {
