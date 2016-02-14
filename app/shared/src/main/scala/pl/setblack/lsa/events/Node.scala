@@ -1,7 +1,6 @@
 package pl.setblack.lsa.events
 
 
-
 import pl.setblack.lsa.io.{DomainStorage, Storage}
 import upickle.default._
 
@@ -12,8 +11,8 @@ import scala.concurrent.{Await, Promise, ExecutionContext, Future}
 
 
 /**
- * Node represents system to register domains and send pl.setblack.lsa.events.
- */
+  * Node represents system to register domains and send pl.setblack.lsa.events.
+  */
 class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   import ExecutionContext.Implicits.global
@@ -27,9 +26,10 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   private var nextEventId: Long = 0
 
-  def this(constId:Long ) (implicit  storage: Storage)= {
-    this( Promise[Long].success(constId).future)(storage)
+  def this(constId: Long)(implicit storage: Storage) = {
+    this(Promise[Long].success(constId).future)(storage)
   }
+
   def loadDomains() = {
     this.domains.foreach(
       kv => this.domainStorages.get(kv._1).foreach(
@@ -56,20 +56,20 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
 
-  def sendEvent(content: String, domain: Seq[String], transient : Boolean = false): Unit = {
+  def sendEvent(content: String, domain: Seq[String], transient: Boolean = false): Unit = {
     val adr = Address(All, domain)
     sendEvent(content, adr, transient)
   }
 
   /**
-   * Dispatch event from this Node to ... other Node (or not).
-   */
-  def sendEvent(content: String, adr: Address, transient : Boolean): Unit = {
+    * Dispatch event from this Node to ... other Node (or not).
+    */
+  def sendEvent(content: String, adr: Address, transient: Boolean): Unit = {
     this.id.onSuccess {
-        case nodeid:Long => {
-          val event = new Event(content, getNextEventId(), nodeid)
-          this.sendEvent(event, adr)
-        }
+      case nodeid: Long => {
+        val event = new Event(content, getNextEventId(), nodeid)
+        this.sendEvent(event, adr)
+      }
 
     }
   }
@@ -77,11 +77,10 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   private def sendEvent(event: Event, adr: Address): Unit = {
 
     this.id onSuccess {
-      case nodeId:Long => {
+      case nodeId: Long => {
 
         getConnectionsForAddress(adr) onSuccess {
           case seq => {
-
             seq.foreach(nc => nc.send(new NodeMessage(adr, event, Seq(nodeId))))
           }
         }
@@ -93,7 +92,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   private[events] def getConnectionsForAddress(adr: Address): Future[Seq[NodeConnection]] = {
 
     val result = Promise[Seq[NodeConnection]]
-      adr.target match {
+    adr.target match {
       case Local => {
 
         this.loopConnection onSuccess {
@@ -114,11 +113,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   def createClientIdMessage(clientId: Long): Future[NodeMessage] = {
     this.id.map {
-      case nodeId:Long => {
+      case nodeId: Long => {
 
-      val event = new Event(write[ControlEvent](RegisteredClient(clientId,nodeId)), 1, nodeId)
-      NodeMessage(Address(System), event)
-    }
+        val event = new Event(write[ControlEvent](RegisteredClient(clientId, nodeId)), 1, nodeId)
+        NodeMessage(Address(System), event)
+      }
     }
   }
 
@@ -154,20 +153,20 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
 
-  private def useSerializer[O](syncEvent : ResyncDomain, domain: Domain[O] ) : Option[DomainSerializer[O]] = {
+  private def useSerializer[O](syncEvent: ResyncDomain, domain: Domain[O]): Option[DomainSerializer[O]] = {
 
-      if( syncEvent.recentEvents.isEmpty ) {
-        println(s"going to use serializer  because of empty events in ${domain.path} from ${syncEvent.clientId}" )
-        domain.getSerializer
-      } else {
-        None
-      }
+    if (syncEvent.recentEvents.isEmpty) {
+      println(s"going to use serializer  because of empty events in ${domain.path} from ${syncEvent.clientId}")
+      domain.getSerializer
+    } else {
+      None
+    }
   }
 
-  private def sendRestoreDomain[X  ](domain: Domain[X], serializer: DomainSerializer[X], address: Address) = {
+  private def sendRestoreDomain[X](domain: Domain[X], serializer: DomainSerializer[X], address: Address) = {
     val serialized = serializer.write(domain.getState)
     this.id onSuccess {
-      case nodeId:Long =>
+      case nodeId: Long =>
         val event = Event(write[ControlEvent](RestoreDomain(domain.path, serialized)), 0, nodeId)
         val msg = new NodeMessage(Address(System, domain.path), event, Seq(nodeId))
         this.getConnectionsForAddress(address) onSuccess {
@@ -176,23 +175,24 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     }
   }
 
-  private def resyncDomain(sync: ResyncDomain): Unit = {
+  private def resyncDomain(sync: ResyncDomain, connectionData: ConnectionData): Unit = {
     println(s"resync domain ${sync.clientId}")
     val address = Address(Target(sync.clientId), sync.domain)
 
-    this.filterDomains(sync.domain).map( (domain:Domain[_]) => {
+    this.filterDomains(sync.domain).map((domain: Domain[_]) => {
       val castedDomain = domain.asInstanceOf[Domain[Any]]
       useSerializer(sync, castedDomain) match {
-        case  None => domain.eventsToResend(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
-        case Some(serializer ) => sendRestoreDomain( castedDomain, serializer, address)
+        case None => domain.eventsToResend(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
+        case Some(serializer) => sendRestoreDomain(castedDomain, serializer, address)
       }
 
       if (sync.syncBack) {
-
+        println(s"will track domain ${sync.domain}")
+        connectionData.trackDomain(sync.domain)
         this.id onSuccess {
-          case nodeId:Long =>
+          case nodeId: Long =>
             println(s"sync back domain server is ${nodeId}")
-            val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain,  domain.recentEvents.mapValues( (s:Seq[Long]) => s.max), false)), 0, nodeId)
+            val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max), false)), 0, nodeId)
             val msg = new NodeMessage(Address(System, sync.domain), event, Seq(nodeId))
             this.getConnectionsForAddress(address) onSuccess {
               case seq => seq.foreach(nc => nc.send(msg))
@@ -203,28 +203,37 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private def restoreDomain(serialized: RestoreDomain): Unit = {
-    this.filterDomains(serialized.domain).foreach( domain  => {
+    println(s"in restore domain ${serialized.domain}")
+    this.filterDomains(serialized.domain).foreach(domain => {
       domain.getSerializer match {
         case Some(serializer) => {
           val castedDomain = domain.asInstanceOf[Domain[Any]]
-          castedDomain.setState( serializer.read(serialized.serialized))
+          println(s"about to set state of restored domain ${serialized.domain}")
+          castedDomain.setState(serializer.read(serialized.serialized))
         }
         case None => ???
       }
     })
   }
 
-  def processSysMessage(ev: Event): Unit = {
+
+
+  def listenDomains(listen: ListenDomains, sender: Long) = {
+    this.connections.get(sender).foreach( nodeConnection => nodeConnection.setListeningTo( listen.domains))
+  }
+
+  def processSysMessage(ev: Event, connectionData: ConnectionData): Unit = {
     println(s"processing sys message ${ev.content}")
     val ctrlEvent = read[ControlEvent](ev.content)
-    this.id onSuccess  {
-      case nodeId : Long =>
-        if ( ev.sender != nodeId) {
+    this.id onSuccess {
+      case nodeId: Long =>
+        if (ev.sender != nodeId) {
           ctrlEvent match {
             //does not make any sense now...
             case RegisteredClient(clientId, serverId) => println("registered as: " + id)
-            case sync: ResyncDomain => resyncDomain(sync)
-            case serialized : RestoreDomain => restoreDomain(serialized)
+            case sync: ResyncDomain => resyncDomain(sync, connectionData)
+            case serialized: RestoreDomain => restoreDomain(serialized)
+            case listen : ListenDomains => listenDomains( listen, ev.sender)
           }
         }
     }
@@ -233,13 +242,12 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   private def reroute(msg: NodeMessage): Unit = {
     this.id onSuccess {
-      case nodeId:Long =>{
+      case nodeId: Long => {
         val routedMsg = msg.copy(route = msg.route :+ nodeId)
         this.connections.values.filter(p => !routedMsg.route.contains(p.targetId))
-        .foreach(nc => {
-
-        nc.send(routedMsg)
-      })
+          .foreach(nc => {
+            nc.send(routedMsg)
+          })
       }
     }
   }
@@ -253,23 +261,30 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   /**
-   * Node receives message here.
-   */
+    * Node receives message here.
+    */
   def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
-    if (msg.destination.target == System) {
-      processSysMessage(msg.event)
-    } else {
-      receiveMessageLocal(msg,connectionData)
-      reroute(msg)
+    receiveMessageLocal(msg, connectionData)
+    msg.destination.target match {
+      case All => reroute(msg)
+      case Target(x) => reroute(msg)
+      case _ =>
     }
-
-
 
   }
 
-  def receiveMessageLocal(msg: NodeMessage, connectionData: ConnectionData ) = {
+
+  def receiveMessageLocal(msg: NodeMessage, connectionData: ConnectionData) = {
+    if (msg.destination.target == System) {
+      processSysMessage(msg.event, connectionData)
+    } else {
+      receiveLocalDomainMessage(msg, connectionData)
+    }
+  }
+
+  private def receiveLocalDomainMessage(msg: NodeMessage, connectionData: ConnectionData) = {
     messageListeners foreach (listener => listener.onMessage(msg))
-    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v,connectionData))
+    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v, connectionData))
   }
 
   def saveEvent(event: Event, path: Seq[String]) = {
@@ -278,11 +293,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   private def sendEvenToDomain(event: Event, domain: Domain[_], connectionData: ConnectionData) = {
 
-    val eventContext  =new NodeEventContext( this, event.sender, connectionData)
+    val eventContext = new NodeEventContext(this, event.sender, connectionData)
     val result = domain.receiveEvent(event, eventContext)
-    if ( result.persist) {
+    if (result.persist) {
       saveEvent(event, domain.path)
-    } 
+    }
 
   }
 
@@ -304,7 +319,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   private def syncDomain(path: Seq[String], domain: Domain[_], syncBack: Boolean) = {
     this.id.onSuccess {
       case nodeId: Long =>
-        val event = Event(ControlEvent.writeEvent(ResyncDomain(nodeId, path, domain.recentEvents.mapValues((s:Seq[Long])=>s.max), syncBack)), 0, nodeId)
+        val event = Event(ControlEvent.writeEvent(ResyncDomain(nodeId, path, domain.recentEvents.mapValues((s: Seq[Long]) => s.max), syncBack)), 0, nodeId)
         val adr = Address(System, path)
 
         this.sendEvent(event, adr)

@@ -6,11 +6,10 @@ import upickle.default._
 
 import scala.collection.mutable
 
-class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protocol {
-  val connectionData = mutable.Map[Long, ConnectionData]()
+class ClientWSProtocol(var connection: WebSocket, val node: Node) extends ProtocolBase {
   setConnectionHandlers(connection)
+  override def sendInternal(msg: NodeMessage, connectionData: ConnectionData): Unit = {
 
-  override def send(msg: NodeMessage): Unit = {
     if (connection.readyState > 2) {
       println("restarting connection")
       restartConnection(connection)
@@ -26,10 +25,8 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
 
     con.onmessage = { (event : MessageEvent) =>
       val msg = read[NodeMessageTransport](event.data.toString).toNodeMessage
-      node.receiveMessage(msg, connectionData.getOrElseUpdate(msg.event.sender, new ConnectionData()))
-
+      node.receiveMessage(msg, connectionData)
     }
-
 
     con.onerror = { (event: org.scalajs.dom.raw.ErrorEvent) ⇒
       println(s"there was an error ${event.toString}")

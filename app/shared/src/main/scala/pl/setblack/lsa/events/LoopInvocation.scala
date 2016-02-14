@@ -1,11 +1,8 @@
 package pl.setblack.lsa.events
 
-class LoopInvocation(val target:Node) extends Protocol {
- val connectionData  = new ConnectionData()
+class LoopInvocation(val target:Node) extends ProtocolBase {
 
-
-  override def send(msg: NodeMessage): Unit = {
-
+  override def sendInternal(msg: NodeMessage, connectionData: ConnectionData): Unit = {
     target.receiveMessageLocal(msg, connectionData)
   }
 }
