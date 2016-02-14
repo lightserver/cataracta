@@ -9,6 +9,8 @@ case class RegisteredClient(clientId :Long, senderNodeId:Long) extends ControlEv
 case class ResyncDomain(  clientId:Long, domain: Seq[String],  recentEvents : Map[Long, Long],  syncBack: Boolean ) extends ControlEvent
 case class RestoreDomain( domain: Seq[String],  serialized: String ) extends ControlEvent
 case class ListenDomains( domains: Set[Seq[String]]) extends ControlEvent
+case object Ping extends ControlEvent
+
 
 
 

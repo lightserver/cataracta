@@ -15,7 +15,7 @@ class NodeConnection(
     if ( msg.destination.target == System || isInterested( msg.destination.path) ) {
       protocol.send(msg)
     } else {
-      println(s"very ignored send to ${msg.destination}")
+      println(s"ignored sending to ${msg.destination}")
     }
   }
 

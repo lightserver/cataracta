@@ -154,9 +154,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
 
   private def useSerializer[O](syncEvent: ResyncDomain, domain: Domain[O]): Option[DomainSerializer[O]] = {
-
     if (syncEvent.recentEvents.isEmpty) {
-      println(s"going to use serializer  because of empty events in ${domain.path} from ${syncEvent.clientId}")
       domain.getSerializer
     } else {
       None
@@ -176,7 +174,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private def resyncDomain(sync: ResyncDomain, connectionData: ConnectionData): Unit = {
-    println(s"resync domain ${sync.clientId}")
     val address = Address(Target(sync.clientId), sync.domain)
 
     this.filterDomains(sync.domain).map((domain: Domain[_]) => {
@@ -187,11 +184,8 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
       }
 
       if (sync.syncBack) {
-        println(s"will track domain ${sync.domain}")
-        connectionData.trackDomain(sync.domain)
         this.id onSuccess {
           case nodeId: Long =>
-            println(s"sync back domain server is ${nodeId}")
             val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max), false)), 0, nodeId)
             val msg = new NodeMessage(Address(System, sync.domain), event, Seq(nodeId))
             this.getConnectionsForAddress(address) onSuccess {
@@ -203,12 +197,10 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private def restoreDomain(serialized: RestoreDomain): Unit = {
-    println(s"in restore domain ${serialized.domain}")
     this.filterDomains(serialized.domain).foreach(domain => {
       domain.getSerializer match {
         case Some(serializer) => {
           val castedDomain = domain.asInstanceOf[Domain[Any]]
-          println(s"about to set state of restored domain ${serialized.domain}")
           castedDomain.setState(serializer.read(serialized.serialized))
         }
         case None => ???
@@ -223,7 +215,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   def processSysMessage(ev: Event, connectionData: ConnectionData): Unit = {
-    println(s"processing sys message ${ev.content}")
+
     val ctrlEvent = read[ControlEvent](ev.content)
     this.id onSuccess {
       case nodeId: Long =>
@@ -234,6 +226,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
             case sync: ResyncDomain => resyncDomain(sync, connectionData)
             case serialized: RestoreDomain => restoreDomain(serialized)
             case listen : ListenDomains => listenDomains( listen, ev.sender)
+            case Ping => println("received ping")
           }
         }
     }
@@ -244,10 +237,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     this.id onSuccess {
       case nodeId: Long => {
         val routedMsg = msg.copy(route = msg.route :+ nodeId)
-        this.connections.values.filter(p => !routedMsg.route.contains(p.targetId))
-          .foreach(nc => {
-            nc.send(routedMsg)
-          })
+        this.getConnectionsForAddress(msg.destination).foreach(
+         dstCollection =>dstCollection.filter(p => !routedMsg.route.contains(p.targetId)).foreach(nc => {
+          nc.send(routedMsg)
+        })
+        )
       }
     }
   }
@@ -325,5 +319,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
         this.sendEvent(event, adr)
     }
 
+  }
+
+  def ping() = {
+    val adr = Address(System)
+    val pingEvent  = ControlEvent.writeEvent(Ping)
+    this.sendEvent(pingEvent, adr, true)
   }
 }

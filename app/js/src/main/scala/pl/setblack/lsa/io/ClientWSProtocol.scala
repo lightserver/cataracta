@@ -3,15 +3,17 @@ package pl.setblack.lsa.io
 import org.scalajs.dom.raw.{MessageEvent, WebSocket}
 import pl.setblack.lsa.events._
 import upickle.default._
+import org.scalajs.dom.window
 
 import scala.collection.mutable
 
 class ClientWSProtocol(var connection: WebSocket, val node: Node) extends ProtocolBase {
   setConnectionHandlers(connection)
+  initPings()
+
   override def sendInternal(msg: NodeMessage, connectionData: ConnectionData): Unit = {
 
     if (connection.readyState > 2) {
-      println("restarting connection")
       restartConnection(connection)
       connection.onopen = {  (event: org.scalajs.dom.raw.Event) ⇒
         connection.send(write[NodeMessageTransport](msg.toTransport))
@@ -29,7 +31,6 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
     }
 
     con.onerror = { (event: org.scalajs.dom.raw.ErrorEvent) ⇒
-      println(s"there was an error ${event.toString}")
       restartConnection(con)
     }
   }
@@ -38,4 +39,12 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
     connection = new WebSocket(old.url)
     setConnectionHandlers( connection)
   }
+
+  private def initPings(): Unit = {
+    window.setInterval( () => {
+      node.ping()
+    } , 10000)
+  }
+
+
 }
