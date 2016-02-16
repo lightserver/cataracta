@@ -226,7 +226,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
             case sync: ResyncDomain => resyncDomain(sync, connectionData)
             case serialized: RestoreDomain => restoreDomain(serialized)
             case listen : ListenDomains => listenDomains( listen, ev.sender)
-            case Ping => println("received ping")
+            case Ping => {}
           }
         }
     }
