@@ -4,10 +4,7 @@ package pl.setblack.lsa.events
 import pl.setblack.lsa.io.{DomainStorage, Storage}
 import upickle.default._
 
-import scala.collection.mutable.ArrayBuffer
-import scala.concurrent
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 
 /**

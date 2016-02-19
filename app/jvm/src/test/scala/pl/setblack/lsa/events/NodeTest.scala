@@ -1,5 +1,7 @@
 package pl.setblack.lsa.events
 
+import scala.collection.mutable
+import scala.collection.parallel.mutable.ParSeq
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -118,8 +120,8 @@ class NodeTest extends org.scalatest.FunSpec {
 
 
 class HistoryListener extends MessageListener {
-  var values = Seq[Any]()
+  val values = mutable.Buffer[Any]()
   override def onMessage(m: NodeMessage): Unit = {
-    values = values :+ m.event.content
+    values  +=   m.event.content
   }
 }

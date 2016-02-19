@@ -2,6 +2,8 @@ package pl.setblack.lsa.events
 
 abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
+  type EVENT
+
 
   var recentEvents = Map[Long, Seq[Long]]()
   var listeners = Seq[DomainListener[O]]()
