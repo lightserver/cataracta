@@ -1,7 +1,9 @@
 package pl.setblack.lsa.events
 
 abstract class EventContext {
-   def reply ( eventContent : String, path : Seq[String]) : Unit
+  def sender:Long
+
+  def reply ( eventContent : String, path : Seq[String]) : Unit
 
   def sendLocal ( eventContent : String, path : Seq[String]) : Unit = {
     val adr = Address(Local, path)
@@ -17,7 +19,7 @@ abstract class EventContext {
 
 class NodeEventContext(
                         private val parentNode : Node,
-                        private val sender: Long,
+                        override val sender: Long,
                       val connectionData: ConnectionData) extends EventContext{
    override def reply( eventContent : String, path : Seq[String]) : Unit = {
       val adr = Address(Target(sender), path)
@@ -36,6 +38,8 @@ class NodeEventContext(
 }
 
 class NullContext extends EventContext{
+
+  def sender = -1
 
   override val connectionData = new ConnectionData()
 

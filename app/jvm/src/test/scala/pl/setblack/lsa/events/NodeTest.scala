@@ -8,7 +8,6 @@ import scala.concurrent.duration._
 class NodeTest extends org.scalatest.FunSpec {
   implicit val storage = new FakeStorage
 
-
   describe("Node") {
 
     describe("when created") {

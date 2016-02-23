@@ -4,14 +4,19 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   type EVENT
 
-
   var recentEvents = Map[Long, Seq[Long]]()
   var listeners = Seq[DomainListener[O]]()
   val eventsHistory = scala.collection.mutable.ArrayBuffer.empty[Event]
 
-  def getSerializer : Option[DomainSerializer[O]] = None
+  private[events] def getSerializer : Option[DomainSerializer[O]] = None
 
-  def processDomain(state: O, event: Event, eventContext: EventContext ): Response
+  protected def getEventConverter : EventConverter[EVENT]
+
+  protected def processDomain(state : O, event:EVENT, eventContext : EventContext ) : Response
+
+  private def processDomain(state: O, event: Event, eventContext: EventContext ): Response = {
+      processDomain(state, getEventConverter.readEvent(event.content), eventContext)
+  }
 
   def getState = domainState
 
@@ -34,12 +39,10 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
 
-
       val result = processDomain(domainState, event, eventContext)
       if ( result.persist) {
           eventsHistory += event
       }
-
       listeners.foreach(l => l.onDomainChanged(domainState, Some(event)))
       result
     } else {

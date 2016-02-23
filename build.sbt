@@ -5,27 +5,21 @@ import sbt._
 
 import sbt.Keys._
 
-name := "cataracta"
-organization := "pl.setblack.lsa"
-scalaVersion := "2.11.7"
-
-version := "0.95"
-
 scalaJSStage in Global := FastOptStage
 
 skip in packageJSDependencies := false
 
 val app = crossProject.settings(
-  scalaVersion := "2.11.7",
-  name := "cataracta",
-  organization := "pl.setblack.lsa",
-  version := "0.95",
+   isSnapshot := true,
+   name := "cataracta",
+   organization := "pl.setblack.lsa",
+   version := "0.95",
+   scalaVersion := "2.11.7",
   unmanagedSourceDirectories in Compile +=
     baseDirectory.value  / "shared" / "main" / "scala",
 
   libraryDependencies ++= Seq(
     "com.lihaoyi" %%% "upickle" % "0.3.7"
-
   ),
   testFrameworks += new TestFramework("utest.runner.Framework")
 
@@ -44,6 +38,7 @@ val app = crossProject.settings(
   skip in packageJSDependencies := false ,// creates app-jsdeps.js with the react JS lib inside
   persistLauncher in Compile := true
 ).jvmSettings(
+  scalacOptions :=Seq("-Yopt:l:classpath"),
   libraryDependencies ++= Seq(
     "io.spray" %% "spray-can" % "1.3.2",
     "io.spray" %% "spray-routing" % "1.3.2",
