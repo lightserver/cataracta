@@ -13,6 +13,10 @@ class NodeConnection(
 
   def send(msg: NodeMessage): Unit = {
     if ( msg.destination.target == System || isInterested( msg.destination.path) ) {
+      println(s"${targetId} wants  ${msg.destination.path}  event ${msg.event.content.take(50)} seen by ${msg.route}")
+      if ( msg.route.contains(targetId)) {
+          println("futile send of probably already seen message")
+      }
       protocol.send(msg)
     } else {
       println(s"ignored sending to ${msg.destination}")

@@ -1,6 +1,6 @@
 package pl.setblack.lsa.events
 
-trait DomainListener[O] {
+trait DomainListener[O, EVENT] {
 
-  def onDomainChanged ( domain: O , ev : Option[Event]) : Unit
+  def onDomainChanged ( domain: O , ev : Option[EVENT]) : Unit
 }

@@ -46,6 +46,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     domains = domains + (path -> domain)
     val domainStore = new DomainStorage(path, storage)
     domainStorages = domainStorages + (path -> domainStore)
+    new DomainRef[domain.EVENT]( path, domain.getEventConverter, this)
   }
 
   private[events] def hasDomain(path: Seq[String]): Boolean = {
@@ -141,10 +142,10 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     this.connections
   }
 
-  def registerDomainListener[O](listener: DomainListener[O], path: Seq[String]): Unit = {
+  def registerDomainListener[O,X](listener: DomainListener[O,X], path: Seq[String]): Unit = {
     this.filterDomains(path).foreach(x => x match {
       case d: Domain[_] => {
-        d.asInstanceOf[Domain[O]].registerListener(listener)
+        d.asInstanceOf[Domain[O] {type EVENT=X}].registerListener(listener)
       }
     })
   }

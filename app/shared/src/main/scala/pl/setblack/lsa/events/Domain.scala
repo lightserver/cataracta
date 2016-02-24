@@ -5,12 +5,12 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   type EVENT
 
   var recentEvents = Map[Long, Seq[Long]]()
-  var listeners = Seq[DomainListener[O]]()
+  var listeners = Seq[DomainListener[O, EVENT]]()
   val eventsHistory = scala.collection.mutable.ArrayBuffer.empty[Event]
 
   private[events] def getSerializer : Option[DomainSerializer[O]] = None
 
-  protected def getEventConverter : EventConverter[EVENT]
+  def getEventConverter : EventConverter[EVENT]
 
   protected def processDomain(state : O, event:EVENT, eventContext : EventContext ) : Response
 
@@ -30,7 +30,8 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
   }
 
   def eventsToResend(clientId: Long, recentEvents: Map[Long, Long]): Seq[Event] = {
-    this.eventsHistory
+    //OMG how naive
+    this.eventsHistory.filter( ev=> recentEvents.get(ev.sender).map( ev.id > _ ).getOrElse(true) )
   }
 
   def receiveEvent(event: Event, eventContext :EventContext):Response = {
@@ -38,19 +39,19 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
-
-      val result = processDomain(domainState, event, eventContext)
+      val convertedEvent = getEventConverter.readEvent(event.content)
+      val result = processDomain(domainState, convertedEvent, eventContext)
       if ( result.persist) {
           eventsHistory += event
       }
-      listeners.foreach(l => l.onDomainChanged(domainState, Some(event)))
+      listeners.foreach(l => l.onDomainChanged(domainState, Some(convertedEvent)))
       result
     } else {
       PreviouslySeenEvent
     }
   }
 
-  def registerListener(listener: DomainListener[O]): Unit = {
+  def registerListener(listener: DomainListener[O, EVENT]): Unit = {
     listeners = listeners :+ listener
   }
 

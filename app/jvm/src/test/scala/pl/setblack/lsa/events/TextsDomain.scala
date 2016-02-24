@@ -11,9 +11,7 @@ class TextsDomain extends Domain[ArrayBuffer[String]](new ArrayBuffer[String](),
 
   override type EVENT = String
 
-
-
-  override protected def getEventConverter: EventConverter[EVENT] = new EventConverter[String] {
+  override def getEventConverter: EventConverter[EVENT] = new EventConverter[String] {
     override def readEvent(str: String): String = str
 
     override def writeEvent(e: String): String = e
