@@ -4,7 +4,7 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   type EVENT
 
-  var recentEvents = Map[Long, Seq[Long]]()
+  var recentEvents:scala.collection.mutable.Map[Long,Seq[Long]] = scala.collection.mutable.HashMap[Long, Seq[Long]]()
   var listeners = Seq[DomainListener[O, EVENT]]()
   val eventsHistory = scala.collection.mutable.ArrayBuffer.empty[Event]
 
@@ -36,6 +36,7 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   def receiveEvent(event: Event, eventContext :EventContext):Response = {
     if (!seenEvent(event)) {
+
 
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))

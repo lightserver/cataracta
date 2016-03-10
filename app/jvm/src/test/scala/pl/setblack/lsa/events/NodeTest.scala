@@ -1,5 +1,7 @@
 package pl.setblack.lsa.events
 
+import pl.setblack.lsa.concurrency.NoConcurrencySystem
+
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSeq
 import scala.concurrent.Await
@@ -7,6 +9,7 @@ import scala.concurrent.duration._
 
 class NodeTest extends org.scalatest.FunSpec {
   implicit val storage = new FakeStorage
+  implicit val noconcurrency = new NoConcurrencySystem
 
   describe("Node") {
 
@@ -51,17 +54,17 @@ class NodeTest extends org.scalatest.FunSpec {
       node1.registerMessageListener(history)
 
       it("should send message to Node1") {
-        node1.sendEvent("testLocal", node1Addr, true)
+        node1.sendEvent("testLocal", node1Addr)
         wait(node1)
         assert( history.values(0) == "testLocal")
       }
       it("should send message to Node1 via All") {
-        node1.sendEvent("testLocal", nodeAllAddr, true)
+        node1.sendEvent("testLocal", nodeAllAddr)
         wait(node1)
         assert( history.values(0) == "testLocal")
       }
       it("should send message to Node1 via Local") {
-        node1.sendEvent("testLocal", nodeLocalAddr, true)
+        node1.sendEvent("testLocal", nodeLocalAddr)
         assert( history.values(0) == "testLocal")
       }
     }
@@ -89,7 +92,7 @@ class NodeTest extends org.scalatest.FunSpec {
 
 
       it("should send message") {
-        node1.sendEvent("test", node2Addr, true)
+        node1.sendEvent("test", node2Addr)
         wait(node1)
         assert( history.values(0) == "test")
       }
@@ -98,7 +101,7 @@ class NodeTest extends org.scalatest.FunSpec {
 
 
   def wait(node1: Node): node1.id.type = {
-    Thread.sleep(2)
+    Thread.sleep(20)
     Await.ready(node1.id, 1 seconds)
   }
 
@@ -110,7 +113,7 @@ class NodeTest extends org.scalatest.FunSpec {
     node1.registerDomain(Seq("default"), domain)
 
     it("should send message to Node1") {
-      node1.sendEvent("testLocal", nodeLocalAddr, false)
+      node1.sendEvent("testLocal", nodeLocalAddr)
       wait(node1)
       assert(domain.getState(0) == "testLocal")
     }

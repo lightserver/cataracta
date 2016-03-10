@@ -23,11 +23,11 @@ class NodeEventContext(
                       val connectionData: ConnectionData) extends EventContext{
    override def reply( eventContent : String, path : Seq[String]) : Unit = {
       val adr = Address(Target(sender), path)
-        parentNode.sendEvent(  eventContent, adr, true)
+        parentNode.sendEvent(  eventContent, adr)
     }
 
   override def send( adr: Address, eventContent : String) : Unit = {
-    parentNode.sendEvent(  eventContent, adr, false)
+    parentNode.sendEvent(  eventContent, adr)
   }
 
   override def isSecure() : Boolean = {

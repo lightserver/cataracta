@@ -13,7 +13,7 @@ val app = crossProject.settings(
    isSnapshot := true,
    name := "cataracta",
    organization := "pl.setblack.lsa",
-   version := "0.95",
+   version := "0.96",
    scalaVersion := "2.11.7",
   unmanagedSourceDirectories in Compile +=
     baseDirectory.value  / "shared" / "main" / "scala",
@@ -40,8 +40,6 @@ val app = crossProject.settings(
 ).jvmSettings(
   scalacOptions :=Seq("-Yopt:l:classpath"),
   libraryDependencies ++= Seq(
-    "io.spray" %% "spray-can" % "1.3.2",
-    "io.spray" %% "spray-routing" % "1.3.2",
     "com.typesafe.akka" %% "akka-actor" % "2.3.6",
     "com.typesafe.akka" %% "akka-remote" % "2.3.6",
     "org.scalaz" %% "scalaz-core" % "7.1.2",

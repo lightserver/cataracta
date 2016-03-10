@@ -1,6 +1,8 @@
 package pl.setblack.lsa.events
 
 
+import pl.setblack.lsa.concurrency.{BadActorRef, ConcurrencySystem}
+import pl.setblack.lsa.events.impl._
 import pl.setblack.lsa.io.{DomainStorage, Storage}
 import upickle.default._
 
@@ -9,33 +11,38 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /**
   * Node represents system to register domains and send pl.setblack.lsa.events.
+  *
+  * @TODO: Increase counter after load
+  * @TODO: reorganize counter (target path)
+  *
   */
-class Node(val id: Future[Long])(implicit val storage: Storage) {
+class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val concurency : ConcurrencySystem) {
 
   import ExecutionContext.Implicits.global
 
+  type InternalDomainRef = BadActorRef[EventWrapper]
 
-  private var connections: Map[Long, NodeConnection] = Map()
-  private var domains: Map[Seq[String], Domain[_]] = Map()
-  private var domainStorages: Map[Seq[String], DomainStorage] = Map()
+
+
+  val nodeRef:BadActorRef[NodeEvent] = concurency.createSimpleActor(new NodeActor(this))
+
+
+  private val connections = new scala.collection.mutable.HashMap[Long, NodeConnection]()
+  //private var domains: Map[Seq[String], Domain[_]] = Map()
+  private var domainRefs: Map[Seq[String], InternalDomainRef] = Map()
+
+  //private var domainStorages: Map[Seq[String], DomainStorage] = Map()
   private var messageListeners: Seq[MessageListener] = Seq()
   private val loopConnection = registerConnection(id, new LoopInvocation(this))
 
   private var nextEventId: Long = 0
 
-  def this(constId: Long)(implicit storage: Storage) = {
-    this(Promise[Long].success(constId).future)(storage)
+  def this(constId: Long)(implicit storage: Storage,  concurency : ConcurrencySystem) = {
+    this(Promise[Long].success(constId).future)(storage, concurency)
   }
 
   def loadDomains() = {
-    this.domains.foreach(
-      kv => this.domainStorages.get(kv._1).foreach(
-        ds => {
-          this.nextEventId += ds.loadEvents(kv._2)
-
-        }
-      )
-    )
+    this.domainRefs.values.foreach( domainRef => domainRef.send(LoadDomainCommand))
   }
 
   def registerMessageListener(listener: MessageListener): Unit = {
@@ -43,26 +50,26 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   def registerDomain[O](path: Seq[String], domain: Domain[O]) = {
-    domains = domains + (path -> domain)
-    val domainStore = new DomainStorage(path, storage)
-    domainStorages = domainStorages + (path -> domainStore)
-    new DomainRef[domain.EVENT]( path, domain.getEventConverter, this)
+    val actor = new DomainActor(domain, new DomainStorage(path, storage), nodeRef)
+    val domainRef:InternalDomainRef = concurency.createSimpleActor( actor)
+    domainRefs = domainRefs + ( path -> domainRef)
+    new DomainRef[domain.EVENT](path, domain.getEventConverter, nodeRef)
   }
 
   private[events] def hasDomain(path: Seq[String]): Boolean = {
-    domains contains (path)
+    domainRefs contains (path)
   }
 
 
-  def sendEvent(content: String, domain: Seq[String], transient: Boolean = false): Unit = {
+  def sendEvent(content: String, domain: Seq[String]): Unit = {
     val adr = Address(All, domain)
-    sendEvent(content, adr, transient)
+    sendEvent(content, adr)
   }
 
   /**
     * Dispatch event from this Node to ... other Node (or not).
     */
-  def sendEvent(content: String, adr: Address, transient: Boolean): Unit = {
+  def sendEvent(content: String, adr: Address): Unit = {
     this.id.onSuccess {
       case nodeid: Long => {
         val event = new Event(content, getNextEventId(), nodeid)
@@ -72,7 +79,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     }
   }
 
-  private def sendEvent(event: Event, adr: Address): Unit = {
+  private[events] def sendEvent(event: Event, adr: Address): Unit = {
 
     this.id onSuccess {
       case nodeId: Long => {
@@ -88,7 +95,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   private[events] def getConnectionsForAddress(adr: Address): Future[Seq[NodeConnection]] = {
-
+    println(s"giving connections for${adr}")
     val result = Promise[Seq[NodeConnection]]
     adr.target match {
       case Local => {
@@ -101,9 +108,13 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
           }
         }
       }
-      case All => result.success(this.connections.values.toSeq)
+      case All => {
+        println(s" ALL will give ${this.connections.size} connections")
+        result.success(this.connections.values.toSeq)
+      }
       case System => result.success(this.connections.values.toSeq)
       case Target(x) => result.success(this.connections.values.filter(node => node.knows(x)).toSeq)
+      case _ => println( s" I got stupid target ${adr.target}")
     }
 
     result.future
@@ -130,7 +141,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
 
         val connection = new NodeConnection(nodeId, protocol)
-        this.connections = this.connections + (nodeId -> connection)
+        this.connections +=  (nodeId -> connection)
         futureConnection.success(connection)
       }
     }
@@ -139,70 +150,54 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   def getConnections(): Map[Long, NodeConnection] = {
-    this.connections
+    this.connections.toMap
   }
 
   def registerDomainListener[O,X](listener: DomainListener[O,X], path: Seq[String]): Unit = {
-    this.filterDomains(path).foreach(x => x match {
-      case d: Domain[_] => {
-        d.asInstanceOf[Domain[O] {type EVENT=X}].registerListener(listener)
-      }
-    })
+    this.filterDomains(path).foreach(d =>  d.send( RegisterListener[O,X](listener) ))
+
   }
 
 
-  private def useSerializer[O](syncEvent: ResyncDomain, domain: Domain[O]): Option[DomainSerializer[O]] = {
-    if (syncEvent.recentEvents.isEmpty) {
-      domain.getSerializer
-    } else {
-      None
-    }
-  }
 
-  private def sendRestoreDomain[X](domain: Domain[X], serializer: DomainSerializer[X], address: Address) = {
-    val serialized = serializer.write(domain.getState)
-    this.id onSuccess {
-      case nodeId: Long =>
-        val event = Event(write[ControlEvent](RestoreDomain(domain.path, serialized)), 0, nodeId)
-        val msg = new NodeMessage(Address(System, domain.path), event, Seq(nodeId))
-        this.getConnectionsForAddress(address) onSuccess {
-          case seq => seq.foreach(nc => nc.send(msg))
-        }
-    }
-  }
+
+
 
   private def resyncDomain(sync: ResyncDomain, connectionData: ConnectionData): Unit = {
-    val address = Address(Target(sync.clientId), sync.domain)
 
-    this.filterDomains(sync.domain).map((domain: Domain[_]) => {
+
+    this.filterDomains(sync.domain).map(
+      domainRef => {
+        domainRef.send( new ResyncDomainCommand(sync))
+        /** use serializer and sync back in domain
+
+          * if (sync.syncBack) {
+          * this.id onSuccess {
+          * case nodeId: Long =>
+          * val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max), false)), 0, nodeId)
+          * val msg = new NodeMessage(Address(System, sync.domain), event, Seq(nodeId))
+          * this.getConnectionsForAddress(address) onSuccess {
+          * case seq => seq.foreach(nc => nc.send(msg))
+          * }
+          * }
+          * }*/
+      }
+    )
+
+    /*this.filterDomains(sync.domain).map((domain: Domain[_]) => {
       val castedDomain = domain.asInstanceOf[Domain[Any]]
       useSerializer(sync, castedDomain) match {
         case None => domain.eventsToResend(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
         case Some(serializer) => sendRestoreDomain(castedDomain, serializer, address)
-      }
+      }*/
 
-      if (sync.syncBack) {
-        this.id onSuccess {
-          case nodeId: Long =>
-            val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max), false)), 0, nodeId)
-            val msg = new NodeMessage(Address(System, sync.domain), event, Seq(nodeId))
-            this.getConnectionsForAddress(address) onSuccess {
-              case seq => seq.foreach(nc => nc.send(msg))
-            }
-        }
-      }
-    })
+
+
   }
 
   private def restoreDomain(serialized: RestoreDomain): Unit = {
-    this.filterDomains(serialized.domain).foreach(domain => {
-      domain.getSerializer match {
-        case Some(serializer) => {
-          val castedDomain = domain.asInstanceOf[Domain[Any]]
-          castedDomain.setState(serializer.read(serialized.serialized))
-        }
-        case None => ???
-      }
+    this.filterDomains(serialized.domain).foreach(domainRef => {
+      domainRef.send( new RestoreDomainCommand(serialized))
     })
   }
 
@@ -231,12 +226,22 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
 
   }
 
+  private def dumoConnections() = {
+    println("connections start>>>")
+     this.connections.foreach( (mapEntry)=>{ println(s"${mapEntry._1} -> ${mapEntry._2.getClass}")})
+    println("<<<connections end")
+  }
+
   private def reroute(msg: NodeMessage): Unit = {
+    println(s" wanto to route ${msg.destination} from ${msg.event.sender}")
+    dumoConnections()
     this.id onSuccess {
       case nodeId: Long => {
         val routedMsg = msg.copy(route = msg.route :+ nodeId)
+        println(s" and what to do with routed ${routedMsg.route}?")
         this.getConnectionsForAddress(msg.destination).foreach(
          dstCollection =>dstCollection.filter(p => !routedMsg.route.contains(p.targetId)).foreach(nc => {
+           println(s" will route to: ${nc.targetId}")
           nc.send(routedMsg)
         })
         )
@@ -245,10 +250,9 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
 
-  private def filterDomains(path: Seq[String]): Seq[Domain[_]] = {
-    val res = this.domains
+  private def filterDomains(path: Seq[String]): Seq[InternalDomainRef] = {
+    val res = this.domainRefs
       .filter((v) => path.startsWith(v._1)).values.toSeq
-
     res
   }
 
@@ -257,6 +261,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     */
   def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
     receiveMessageLocal(msg, connectionData)
+    println(s"after receive local of ${msg.event} for @ ${msg.destination}")
     msg.destination.target match {
       case All => reroute(msg)
       case Target(x) => reroute(msg)
@@ -279,23 +284,17 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
     filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v, connectionData))
   }
 
-  def saveEvent(event: Event, path: Seq[String]) = {
-    domainStorages.get(path).foreach(store => store.saveEvent(event))
-  }
 
-  private def sendEvenToDomain(event: Event, domain: Domain[_], connectionData: ConnectionData) = {
+
+  private def sendEvenToDomain(event: Event, domainRef: InternalDomainRef, connectionData: ConnectionData) = {
 
     val eventContext = new NodeEventContext(this, event.sender, connectionData)
-    val result = domain.receiveEvent(event, eventContext)
-    if (result.persist) {
-      saveEvent(event, domain.path)
-    }
+    val wrapped = new SendEventCommand(event, eventContext)
+    domainRef.send(wrapped)
 
   }
 
-  def getDomainObject(path: Seq[String]) = {
-    domains.get(path).get.getState
-  }
+
 
   def getNextEventId(): Long = {
     this.nextEventId += 1
@@ -303,25 +302,23 @@ class Node(val id: Future[Long])(implicit val storage: Storage) {
   }
 
   def resync() = {
-    this.domains.foreach(
+    this.domainRefs.foreach(
       kv => syncDomain(kv._1, kv._2, true))
   }
 
 
-  private def syncDomain(path: Seq[String], domain: Domain[_], syncBack: Boolean) = {
+  private def syncDomain(path: Seq[String], domain: InternalDomainRef, syncBack: Boolean) = {
     this.id.onSuccess {
       case nodeId: Long =>
-        val event = Event(ControlEvent.writeEvent(ResyncDomain(nodeId, path, domain.recentEvents.mapValues((s: Seq[Long]) => s.max), syncBack)), 0, nodeId)
-        val adr = Address(System, path)
-
-        this.sendEvent(event, adr)
+        domain.send (new SyncDomainCommand(nodeId, syncBack))
     }
-
   }
 
   def ping() = {
     val adr = Address(System)
     val pingEvent  = ControlEvent.writeEvent(Ping)
-    this.sendEvent(pingEvent, adr, true)
+    this.sendEvent(pingEvent, adr)
   }
+
+  case class DomainEvent( event : Event, ctx : EventContext)
 }
