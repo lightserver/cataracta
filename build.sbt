@@ -40,8 +40,8 @@ val app = crossProject.settings(
 ).jvmSettings(
   scalacOptions :=Seq("-Yopt:l:classpath"),
   libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.3.6",
-    "com.typesafe.akka" %% "akka-remote" % "2.3.6",
+    "com.typesafe.akka" %% "akka-actor" % "2.4.1",
+    "com.typesafe.akka" %% "akka-remote" % "2.4.1",
     "org.scalaz" %% "scalaz-core" % "7.1.2",
     "com.typesafe.akka" %% "akka-http-experimental" % "2.0.1",
     "org.scalatest" %% "scalatest" % "2.2.1" % "test"

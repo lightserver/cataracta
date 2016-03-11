@@ -54,6 +54,8 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   def registerListener(listener: DomainListener[O, EVENT]): Unit = {
     listeners = listeners :+ listener
+    //@TODO: introduce system events on listeners
+    listener.onDomainChanged( domainState, None)
   }
 
 
