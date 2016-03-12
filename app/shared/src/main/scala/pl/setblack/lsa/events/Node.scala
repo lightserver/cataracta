@@ -95,21 +95,16 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
   }
 
   private[events] def getConnectionsForAddress(adr: Address): Future[Seq[NodeConnection]] = {
-    println(s"giving connections for${adr}")
     val result = Promise[Seq[NodeConnection]]
     adr.target match {
       case Local => {
-
         this.loopConnection onSuccess {
           case nc: NodeConnection => {
-
             result.success(Seq(nc))
-
           }
         }
       }
       case All => {
-        println(s" ALL will give ${this.connections.size} connections")
         result.success(this.connections.values.toSeq)
       }
       case System => result.success(this.connections.values.toSeq)
@@ -222,21 +217,16 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
   }
 
   private def dumoConnections() = {
-    println("connections start>>>")
      this.connections.foreach( (mapEntry)=>{ println(s"${mapEntry._1} -> ${mapEntry._2.getClass}")})
-    println("<<<connections end")
   }
 
   private def reroute(msg: NodeMessage): Unit = {
-    println(s" wanto to route ${msg.destination} from ${msg.event.sender}")
     dumoConnections()
     this.id onSuccess {
       case nodeId: Long => {
         val routedMsg = msg.copy(route = msg.route :+ nodeId)
-        println(s" and what to do with routed ${routedMsg.route}?")
         this.getConnectionsForAddress(msg.destination).foreach(
          dstCollection =>dstCollection.filter(p => !routedMsg.route.contains(p.targetId)).foreach(nc => {
-           println(s" will route to: ${nc.targetId}")
           nc.send(routedMsg)
         })
         )
@@ -256,7 +246,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
     */
   def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
     receiveMessageLocal(msg, connectionData)
-    println(s"after receive local of ${msg.event} for @ ${msg.destination}")
     msg.destination.target match {
       case All => reroute(msg)
       case Target(x) => reroute(msg)
@@ -282,11 +271,9 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
 
 
   private def sendEvenToDomain(event: Event, domainRef: InternalDomainRef, connectionData: ConnectionData) = {
-
     val eventContext = new NodeEventContext(this, event.sender, connectionData)
     val wrapped = new SendEventCommand(event, eventContext)
     domainRef.send(wrapped)
-
   }
 
 
