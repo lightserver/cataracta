@@ -171,19 +171,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
 
     this.filterDomains(sync.domain).map(
       domainRef => {
-        domainRef.send( new ResyncDomainCommand(sync))
-        /** use serializer and sync back in domain
+        this.id onSuccess { case nodeId =>
+          domainRef.send( new ResyncDomainCommand(sync, nodeId))
+        }
 
-          * if (sync.syncBack) {
-          * this.id onSuccess {
-          * case nodeId: Long =>
-          * val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max), false)), 0, nodeId)
-          * val msg = new NodeMessage(Address(System, sync.domain), event, Seq(nodeId))
-          * this.getConnectionsForAddress(address) onSuccess {
-          * case seq => seq.foreach(nc => nc.send(msg))
-          * }
-          * }
-          * }*/
+
       }
     )
 

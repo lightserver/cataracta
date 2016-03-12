@@ -29,6 +29,8 @@ project/plugins/project/
 ### Scala template
 *.class
 *.log
+.idea/
+.iml
 
 # sbt specific
 .cache

@@ -7,6 +7,8 @@ import upickle.default._
 
 class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val nodeRef: BadActorRef[NodeEvent]) extends BadActor[EventWrapper] {
 
+
+
   override def receive(e: EventWrapper): Unit = {
     e match {
       case LoadDomainCommand => storage.loadEvents(domain) //@todo inc events counter
@@ -16,13 +18,17 @@ class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val node
           saveEvent(ev.event, domain.path)
         }
       }
+
       case resync: ResyncDomainCommand => {
         val address = Address(All, resync.sync.domain)
         useSerializer(resync.sync) match {
           case None => domain.eventsToResend(resync.sync.clientId, resync.sync.recentEvents).foreach(ev => sendEvent(ev, address))
           case Some(serializer) => sendRestoreDomain(serializer, address)
         }
-      }
+        if ( resync.sync.syncBack) {
+          syncBack(resync.sync, resync.nodeId, address)
+        }
+       }
       case restore: RestoreDomainCommand => restoreDomain(restore.sync.serialized)
       case sync: SyncDomainCommand => syncDomain(sync.nodeId, sync.syncBack)
       case regListener  :RegisterListener[ _, _ ] =>
@@ -71,6 +77,11 @@ class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val node
      val adr = Address(System, domain.path)
 
      this.sendEvent(event, adr)
+  }
+
+  def syncBack(sync: ResyncDomain, nodeId: Long, address: Address) = {
+   val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max).toMap, false)), 0, nodeId)
+    this.sendEvent(event, Address(System, address.path))
   }
 }
 

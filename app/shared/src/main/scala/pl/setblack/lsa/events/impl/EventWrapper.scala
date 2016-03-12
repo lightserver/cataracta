@@ -13,7 +13,7 @@ case class SendEventCommand(
 }
 
 /** received sync */
-case class ResyncDomainCommand(sync: ResyncDomain) extends EventWrapper
+case class ResyncDomainCommand(sync: ResyncDomain, nodeId: Long) extends EventWrapper
 
 /** trigger sync */
 case class SyncDomainCommand(nodeId: Long, syncBack: Boolean) extends EventWrapper
