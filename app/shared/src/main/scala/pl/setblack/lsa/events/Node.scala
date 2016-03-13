@@ -156,11 +156,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
 
 
 
-
-
-
-
-
   private def resyncDomain(sync: ResyncDomain, connectionData: ConnectionData): Unit = {
 
 
@@ -173,15 +168,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
 
       }
     )
-
-    /*this.filterDomains(sync.domain).map((domain: Domain[_]) => {
-      val castedDomain = domain.asInstanceOf[Domain[Any]]
-      useSerializer(sync, castedDomain) match {
-        case None => domain.eventsToResend(sync.clientId, sync.recentEvents).foreach(ev => sendEvent(ev, address))
-        case Some(serializer) => sendRestoreDomain(castedDomain, serializer, address)
-      }*/
-
-
 
   }
 

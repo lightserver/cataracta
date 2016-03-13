@@ -43,7 +43,7 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
   private def initPings(): Unit = {
     window.setInterval( () => {
       node.ping()
-    } , 10000)
+    } , 30000)
   }
 
 
