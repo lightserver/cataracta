@@ -7,14 +7,18 @@ import org.scalajs.dom.window
 
 import scala.collection.mutable
 
-class ClientWSProtocol(var connection: WebSocket, val node: Node) extends ProtocolBase {
+trait UriProvider {
+  def getWSUri() : String
+}
+
+class ClientWSProtocol(var connection: WebSocket, val uriProvider: UriProvider, val node: Node) extends ProtocolBase {
   setConnectionHandlers(connection)
   initPings()
 
   override def sendInternal(msg: NodeMessage, connectionData: ConnectionData): Unit = {
 
     if (connection.readyState > 2) {
-      restartConnection(connection)
+      restartConnection()
       connection.onopen = {  (event: org.scalajs.dom.raw.Event) ⇒
         connection.send(write[NodeMessageTransport](msg.toTransport))
       }
@@ -31,12 +35,12 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
     }
 
     con.onerror = { (event: org.scalajs.dom.raw.ErrorEvent) ⇒
-      restartConnection(con)
+      restartConnection()
     }
   }
 
-  private def restartConnection( old: WebSocket): Unit = {
-    connection = new WebSocket(old.url)
+  private def restartConnection(): Unit = {
+    connection = new WebSocket(uriProvider.getWSUri())
     setConnectionHandlers( connection)
   }
 
@@ -45,6 +49,6 @@ class ClientWSProtocol(var connection: WebSocket, val node: Node) extends Protoc
       node.ping()
     } , 30000)
   }
-
-
 }
+
+

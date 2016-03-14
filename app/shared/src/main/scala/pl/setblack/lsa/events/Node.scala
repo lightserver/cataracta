@@ -16,7 +16,9 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   * @TODO: reorganize counter (target path)
   *
   */
-class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val concurency : ConcurrencySystem) {
+class Node(val id: Future[Long])(
+  implicit val storage: Storage,
+  implicit  val concurency : ConcurrencySystem) {
 
   import ExecutionContext.Implicits.global
 
@@ -28,10 +30,10 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
 
 
   private val connections = new scala.collection.mutable.HashMap[Long, NodeConnection]()
-  //private var domains: Map[Seq[String], Domain[_]] = Map()
+
   private var domainRefs: Map[Seq[String], InternalDomainRef] = Map()
 
-  //private var domainStorages: Map[Seq[String], DomainStorage] = Map()
+
   private var messageListeners: Seq[MessageListener] = Seq()
   private val loopConnection = registerConnection(id, new LoopInvocation(this))
 
@@ -91,7 +93,6 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
         }
       }
     }
-
   }
 
   private[events] def getConnectionsForAddress(adr: Address): Future[Seq[NodeConnection]] = {
@@ -115,11 +116,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
     result.future
   }
 
-  def createClientIdMessage(clientId: Long): Future[NodeMessage] = {
+  def createClientIdMessage(clientId: Long, token : String): Future[NodeMessage] = {
     this.id.map {
       case nodeId: Long => {
 
-        val event = new Event(write[ControlEvent](RegisteredClient(clientId, nodeId)), 1, nodeId)
+        val event = new Event(write[ControlEvent](RegisteredClient(clientId, nodeId, token)), 1, nodeId)
         NodeMessage(Address(System), event)
       }
     }
@@ -133,14 +134,11 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
     val futureConnection = Promise[NodeConnection]
     futureId onSuccess {
       case nodeId: Long => {
-
-
         val connection = new NodeConnection(nodeId, protocol)
         this.connections +=  (nodeId -> connection)
         futureConnection.success(connection)
       }
     }
-
     futureConnection.future
   }
 
@@ -191,7 +189,7 @@ class Node(val id: Future[Long])(implicit val storage: Storage,implicit  val con
         if (ev.sender != nodeId) {
           ctrlEvent match {
             //does not make any sense now...
-            case RegisteredClient(clientId, serverId) => println("registered as: " + id)
+            case RegisteredClient(clientId, serverId, token) => println("registered as: " + id)
             case sync: ResyncDomain => resyncDomain(sync, connectionData)
             case serialized: RestoreDomain => restoreDomain(serialized)
             case listen : ListenDomains => listenDomains( listen, ev.sender)
