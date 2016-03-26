@@ -9,33 +9,30 @@ scalaJSStage in Global := FastOptStage
 
 skip in packageJSDependencies := false
 
+//resolvers +=
+//  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/releases"
+
 val app = crossProject.settings(
    isSnapshot := true,
    name := "cataracta",
    organization := "pl.setblack.lsa",
-   version := "0.96",
-   scalaVersion := "2.11.7",
+   version := "0.97",
+   scalaVersion := "2.11.8",
   unmanagedSourceDirectories in Compile +=
     baseDirectory.value  / "shared" / "main" / "scala",
 
   libraryDependencies ++= Seq(
-    "com.lihaoyi" %%% "upickle" % "0.3.8"
+    "com.lihaoyi" %%% "upickle" % "0.3.8",
+    "pl.setblack" %%% "cryptotpyrc" % "0.2"
   ),
   testFrameworks += new TestFramework("utest.runner.Framework")
 
-
 ).jsSettings(
   libraryDependencies ++= Seq(
-    "org.scala-js" %%% "scalajs-dom" % "0.8.0",
-    "com.github.japgolly.scalajs-react" %%% "core" % "0.10.4",
-    "com.github.japgolly.scalajs-react" %%% "extra" % "0.10.4",
-    "com.lihaoyi" %%% "scalarx" % "0.2.8"
+    "org.scala-js" %%% "scalajs-dom" % "0.9.0"
   ),
-  // React itself (react-with-addons.js can be react.js, react.min.js, react-with-addons.min.js)
-  jsDependencies ++= Seq(
-    "org.webjars.bower" % "react" % "0.14.3" / "react-with-addons.js" commonJSName "React",
-    "org.webjars.bower" % "react" % "0.14.3" / "react-dom.js" commonJSName "ReactDOM"),
-  skip in packageJSDependencies := false ,// creates app-jsdeps.js with the react JS lib inside
+
+  skip in packageJSDependencies := false ,
   persistLauncher in Compile := true
 ).jvmSettings(
   scalacOptions :=Seq("-Yopt:l:classpath"),

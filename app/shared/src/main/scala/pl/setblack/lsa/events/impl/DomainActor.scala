@@ -73,14 +73,14 @@ class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val node
 
   def syncDomain(nodeId: Long, syncBack : Boolean): Unit = {
 
-     val event = Event(ControlEvent.writeEvent(ResyncDomain(nodeId, domain.path, domain.recentEvents.mapValues((s: Seq[Long]) => s.max).toMap, syncBack)), 0, nodeId)
+     val event = UnsignedEvent(ControlEvent.writeEvent(ResyncDomain(nodeId, domain.path, domain.recentEvents.mapValues((s: Seq[Long]) => s.max).toMap, syncBack)), 0, nodeId)
      val adr = Address(System, domain.path)
 
      this.sendEvent(event, adr)
   }
 
   def syncBack(sync: ResyncDomain, nodeId: Long, address: Address) = {
-   val event = Event(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max).toMap, false)), 0, nodeId)
+   val event = UnsignedEvent(write[ControlEvent](ResyncDomain(nodeId, sync.domain, domain.recentEvents.mapValues((s: Seq[Long]) => s.max).toMap, false)), 0, nodeId)
     this.sendEvent(event, Address(System, address.path))
   }
 }

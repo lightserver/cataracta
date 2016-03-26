@@ -7,8 +7,6 @@ import upickle.default._
 class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
   var saveCounter :Int= 0
 
-
-
   def saveEvent(event: Event):Unit = {
     val storePath = getStorePath( nextCounter )
 

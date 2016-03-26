@@ -4,6 +4,7 @@ package pl.setblack.lsa.events
 import pl.setblack.lsa.concurrency.{BadActorRef, ConcurrencySystem}
 import pl.setblack.lsa.events.impl._
 import pl.setblack.lsa.io.{DomainStorage, Storage}
+import pl.setblack.lsa.os.Reality
 import upickle.default._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -17,8 +18,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   *
   */
 class Node(val id: Future[Long])(
-  implicit val storage: Storage,
-  implicit  val concurency : ConcurrencySystem) {
+  implicit val realityConnection: Reality
+  ) {
 
   import ExecutionContext.Implicits.global
 
@@ -26,7 +27,7 @@ class Node(val id: Future[Long])(
 
 
 
-  val nodeRef:BadActorRef[NodeEvent] = concurency.createSimpleActor(new NodeActor(this))
+  val nodeRef:BadActorRef[NodeEvent] = realityConnection.concurrency.createSimpleActor(new NodeActor(this))
 
 
   private val connections = new scala.collection.mutable.HashMap[Long, NodeConnection]()
@@ -39,8 +40,8 @@ class Node(val id: Future[Long])(
 
   private var nextEventId: Long = 0
 
-  def this(constId: Long)(implicit storage: Storage,  concurency : ConcurrencySystem) = {
-    this(Promise[Long].success(constId).future)(storage, concurency)
+  def this(constId: Long)(implicit reality: Reality) = {
+    this(Promise[Long].success(constId).future)(reality)
   }
 
   def loadDomains() = {
@@ -52,8 +53,8 @@ class Node(val id: Future[Long])(
   }
 
   def registerDomain[O](path: Seq[String], domain: Domain[O]) = {
-    val actor = new DomainActor(domain, new DomainStorage(path, storage), nodeRef)
-    val domainRef:InternalDomainRef = concurency.createSimpleActor( actor)
+    val actor = new DomainActor(domain, new DomainStorage(path, realityConnection.storage), nodeRef)
+    val domainRef:InternalDomainRef = realityConnection.concurrency.createSimpleActor( actor)
     domainRefs = domainRefs + ( path -> domainRef)
     new DomainRef[domain.EVENT](path, domain.getEventConverter, nodeRef)
   }
@@ -74,7 +75,7 @@ class Node(val id: Future[Long])(
   def sendEvent(content: String, adr: Address): Unit = {
     this.id.onSuccess {
       case nodeid: Long => {
-        val event = new Event(content, getNextEventId(), nodeid)
+        val event = new UnsignedEvent(content, getNextEventId(), nodeid)
         this.sendEvent(event, adr)
       }
 
@@ -119,8 +120,7 @@ class Node(val id: Future[Long])(
   def createClientIdMessage(clientId: Long, token : String): Future[NodeMessage] = {
     this.id.map {
       case nodeId: Long => {
-
-        val event = new Event(write[ControlEvent](RegisteredClient(clientId, nodeId, token)), 1, nodeId)
+        val event = new UnsignedEvent(write[ControlEvent](RegisteredClient(clientId, nodeId, token)), 1, nodeId)
         NodeMessage(Address(System), event)
       }
     }
@@ -151,12 +151,7 @@ class Node(val id: Future[Long])(
 
   }
 
-
-
-
   private def resyncDomain(sync: ResyncDomain, connectionData: ConnectionData): Unit = {
-
-
     this.filterDomains(sync.domain).map(
       domainRef => {
         this.id onSuccess { case nodeId =>
@@ -228,14 +223,24 @@ class Node(val id: Future[Long])(
   /**
     * Node receives message here.
     */
-  def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
+  private def receiveMessageUnsigned(msg: NodeMessage, connectionData: ConnectionData) = {
     receiveMessageLocal(msg, connectionData)
     msg.destination.target match {
       case All => reroute(msg)
       case Target(x) => reroute(msg)
       case _ =>
     }
+  }
 
+  def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
+      msg.event match  {
+        case unsigned : UnsignedEvent => {
+          receiveMessageUnsigned(msg, connectionData)
+        }
+        case signed : SignedEvent => {
+
+        }
+      }
   }
 
 

@@ -1,12 +1,9 @@
 package pl.setblack.lsa.concurrency
 
-import akka.actor.Actor.Receive
-import akka.actor.{ActorRef, Actor, Props, ActorSystem}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.japi.Creator
 
-
 class AkkaConcurrencySystem(val system: ActorSystem) extends  ConcurrencySystem{
-
   override def createSimpleActor[BAD <: BadActor[E], E](obj: BAD): BadActorRef[E] = {
       val actorRef = system.actorOf(Props(new AkkaActorWrapper[E](obj)))
       new AkkaActorRef[E](actorRef)

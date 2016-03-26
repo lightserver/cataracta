@@ -1,5 +1,6 @@
 package pl.setblack.lsa.concurrency
 
+import pl.setblack.lsa.security.SecurityProvider
 
 
 trait BadActor[E] {
@@ -26,5 +27,8 @@ class NoConcurrencySystem extends ConcurrencySystem{
       actor.receive(event)
     }
   }
+}
+
+class FakeSecurity extends SecurityProvider {
 
 }

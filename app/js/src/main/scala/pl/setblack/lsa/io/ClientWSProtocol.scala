@@ -20,17 +20,17 @@ class ClientWSProtocol(var connection: WebSocket, val uriProvider: UriProvider, 
     if (connection.readyState > 2) {
       restartConnection()
       connection.onopen = {  (event: org.scalajs.dom.raw.Event) ⇒
-        connection.send(write[NodeMessageTransport](msg.toTransport))
+        connection.send(msg.toTransport.toExportString)
       }
     } else {
-      connection.send(write[NodeMessageTransport](msg.toTransport))
+      connection.send(msg.toTransport.toExportString)
     }
   }
 
   private def setConnectionHandlers( con : WebSocket ):Unit = {
 
     con.onmessage = { (event : MessageEvent) =>
-      val msg = read[NodeMessageTransport](event.data.toString).toNodeMessage
+      val msg = NodeMessageTransport.readExportedString(event.data.toString).toNodeMessage
       node.receiveMessage(msg, connectionData)
     }
 

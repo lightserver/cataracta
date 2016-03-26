@@ -1,6 +1,7 @@
 package pl.setblack.lsa.events
 
-import pl.setblack.lsa.concurrency.NoConcurrencySystem
+import pl.setblack.lsa.concurrency.{FakeSecurity, NoConcurrencySystem}
+import pl.setblack.lsa.os.{SimpleReality, Reality}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSeq
@@ -8,9 +9,10 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class NodeTest extends org.scalatest.FunSpec {
-  implicit val storage = new FakeStorage
-  implicit val noconcurrency = new NoConcurrencySystem
 
+  val storage = new FakeStorage
+  val noconcurrency = new NoConcurrencySystem
+ implicit val reality : Reality = SimpleReality(storage, noconcurrency, new FakeSecurity)
   describe("Node") {
 
     describe("when created") {
@@ -39,7 +41,7 @@ class NodeTest extends org.scalatest.FunSpec {
       val node1 = new Node(1)
       val history = new HistoryListener
       node1.registerMessageListener(history)
-      val testMessage = new NodeMessage(new Address(new Target(1), Seq()), new Event("testik",1,0));
+      val testMessage = new NodeMessage(new Address(new Target(1), Seq()), new UnsignedEvent("testik",1,0));
       node1.receiveMessage(testMessage, new ConnectionData())
       assert( history.values(0) == "testik")
     }
