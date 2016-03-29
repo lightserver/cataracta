@@ -5,14 +5,17 @@ import pl.setblack.lsa.os.{SimpleReality, Reality}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSeq
-import scala.concurrent.Await
+import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
 
+import scala.concurrent.ExecutionContext.Implicits.global
 class NodeTest extends org.scalatest.FunSpec {
 
   val storage = new FakeStorage
   val noconcurrency = new NoConcurrencySystem
- implicit val reality : Reality = SimpleReality(storage, noconcurrency, new FakeSecurity)
+ implicit val reality : Reality = SimpleReality(storage, noconcurrency, Future {
+   new FakeSecurity
+ })
   describe("Node") {
 
     describe("when created") {

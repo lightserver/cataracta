@@ -1,5 +1,6 @@
 package pl.setblack.lsa.concurrency
 
+import pl.setblack.lsa.events.impl.NodeSendEventContent
 import pl.setblack.lsa.security.SecurityProvider
 
 

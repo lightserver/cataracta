@@ -9,8 +9,7 @@ scalaJSStage in Global := FastOptStage
 
 skip in packageJSDependencies := false
 
-//resolvers +=
-//  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/releases"
+scalaVersion := "2.11.8"
 
 val app = crossProject.settings(
    isSnapshot := true,
@@ -23,7 +22,7 @@ val app = crossProject.settings(
 
   libraryDependencies ++= Seq(
     "com.lihaoyi" %%% "upickle" % "0.3.8",
-    "pl.setblack" %%% "cryptotpyrc" % "0.2"
+    "pl.setblack" %%% "cryptotpyrc" % "0.3-SNAPSHOT"
   ),
   testFrameworks += new TestFramework("utest.runner.Framework")
 

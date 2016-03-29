@@ -1,5 +1,7 @@
 package pl.setblack.lsa.events
 
+import pl.setblack.lsa.security.MessageSignature
+
 /**
  * Event with some content.
  *
@@ -25,7 +27,9 @@ case class UnsignedEvent(
 case class SignedEvent(
                           content: String,
                           id: Long,
-                          sender: Long
+                          sender: Long,
+                          signature : MessageSignature
+
                         ) extends Event{
   override def isSigned: Boolean = true
 }
