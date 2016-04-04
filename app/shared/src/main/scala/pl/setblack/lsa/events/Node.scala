@@ -5,7 +5,8 @@ import pl.setblack.lsa.concurrency.{BadActorRef, ConcurrencySystem}
 import pl.setblack.lsa.events.impl._
 import pl.setblack.lsa.io.{DomainStorage, Storage}
 import pl.setblack.lsa.os.Reality
-import pl.setblack.lsa.security.{SecurityProvider, SigningId}
+import pl.setblack.lsa.secureDomain._
+import pl.setblack.lsa.security.{RSAKeyPairExported, SecurityProvider, SigningId}
 import upickle.default._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -21,6 +22,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class Node(val id: Future[Long])(
   implicit val realityConnection: Reality
 ) {
+
 
   import ExecutionContext.Implicits.global
 
@@ -41,8 +43,16 @@ class Node(val id: Future[Long])(
 
   private var security: Future[SecurityProvider] = realityConnection.security
 
+
   def this(constId: Long)(implicit reality: Reality) = {
     this(Promise[Long].success(constId).future)(reality)
+  }
+
+  def initSecurityDomain() = {
+    val securityDomain = new SecurityDomain("nic", nodeRef)
+    val privateSecurityDomain = new PrivateSecurityDomain("nic", nodeRef)
+    registerDomain(securityDomain.path, securityDomain)
+    registerDomain(privateSecurityDomain.path, privateSecurityDomain)
   }
 
   def loadDomains() = {
@@ -83,19 +93,24 @@ class Node(val id: Future[Long])(
   }
 
   private def makeSignedString(eventContent: String, id: Long, nodeId: Long, adr: Address) = {
-    s"${eventContent}:${id}:${nodeId}@${adr.asString}"
+    s"${eventContent}:${id}:${nodeId}"
   }
 
   def sendSignedEvent(content: String, adr: Address, author: SigningId): Unit = {
     this.id.onSuccess {
       case nodeid: Long => {
         val eventId = getNextEventId()
+        println(s"@gonna sign ${content}")
         val toSignMessage = makeSignedString(content, eventId, nodeid, adr)
+        println(s"@msg like  ${toSignMessage}")
         for {
-          securityInstance <- security
-          signature <- securityInstance.signAs(author, toSignMessage)
+          signature <- {
+            println("@getting signature")
+            security.flatMap(_.signAs(author, toSignMessage))
+          }
         } yield {
-          val event = new SignedEvent(content, getNextEventId(), nodeid, signature)
+          println(s"!!!got signeture ${signature}")
+          val event = new SignedEvent(content, eventId, nodeid, signature)
           this.sendEvent(event, adr)
         }
       }
@@ -194,7 +209,7 @@ class Node(val id: Future[Long])(
     this.connections.get(sender).foreach(nodeConnection => nodeConnection.setListeningTo(listen.domains))
   }
 
-  def processSysMessage(ev: Event, connectionData: ConnectionData): Unit = {
+  def processSysMessage(ev: Event, ctx: EventContext): Unit = {
 
     val ctrlEvent = read[ControlEvent](ev.content)
     this.id onSuccess {
@@ -203,7 +218,7 @@ class Node(val id: Future[Long])(
           ctrlEvent match {
             //does not make any sense now...
             case RegisteredClient(clientId, serverId, token) => println("registered as: " + id)
-            case sync: ResyncDomain => resyncDomain(sync, connectionData)
+            case sync: ResyncDomain => resyncDomain(sync, ctx.connectionData)
             case serialized: RestoreDomain => restoreDomain(serialized)
             case listen: ListenDomains => listenDomains(listen, ev.sender)
             case Ping => {}
@@ -244,12 +259,41 @@ class Node(val id: Future[Long])(
     * Node receives message here.
     */
   private def receiveMessageUnsigned(msg: NodeMessage, connectionData: ConnectionData) = {
-    receiveMessageLocal(msg, connectionData)
+    val ctx = new NodeEventContext(this, msg.event.sender, connectionData,None)
+    receiveMessageLocal(msg, ctx)
+    rerouteMsg(msg)
+  }
+
+  private def rerouteMsg(msg: NodeMessage): Unit = {
     msg.destination.target match {
       case All => reroute(msg)
       case Target(x) => reroute(msg)
       case _ =>
     }
+  }
+
+  def receiveMessagSigned(msg: NodeMessage, signed: SignedEvent, connectionData: ConnectionData) = {
+
+    println(s"received signed message ${msg}")
+    //check signature then local  - then go
+    this.security.flatMap( secInstance => {
+      secInstance.isValidSignature(signed.signature,
+        makeSignedString(signed.content,  signed.id, signed.sender, msg.destination))
+    }).foreach{
+      case true => {
+        println("signature matches")
+        val ctx = new NodeEventContext(this, signed.sender, connectionData,Some(signed.signature.signedBy.author))
+        receiveMessageLocal(msg, ctx)
+        rerouteMsg(msg)
+      }
+      case false =>
+        //olaboga, signature does not match
+      println("olaboga signature failed")
+    }
+
+
+
+
   }
 
   def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
@@ -258,28 +302,28 @@ class Node(val id: Future[Long])(
         receiveMessageUnsigned(msg, connectionData)
       }
       case signed: SignedEvent => {
-
+        receiveMessagSigned(msg, signed, connectionData)
       }
     }
   }
 
 
-  def receiveMessageLocal(msg: NodeMessage, connectionData: ConnectionData) = {
+  def receiveMessageLocal(msg: NodeMessage, ctx: EventContext) = {
     if (msg.destination.target == System) {
-      processSysMessage(msg.event, connectionData)
+      processSysMessage(msg.event, ctx)
     } else {
-      receiveLocalDomainMessage(msg, connectionData)
+      receiveLocalDomainMessage(msg, ctx)
     }
   }
 
-  private def receiveLocalDomainMessage(msg: NodeMessage, connectionData: ConnectionData) = {
+  private def receiveLocalDomainMessage(msg: NodeMessage, ctx: EventContext) = {
     messageListeners foreach (listener => listener.onMessage(msg))
-    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v, connectionData))
+    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v, ctx))
   }
 
 
-  private def sendEvenToDomain(event: Event, domainRef: InternalDomainRef, connectionData: ConnectionData) = {
-    val eventContext = new NodeEventContext(this, event.sender, connectionData)
+  private def sendEvenToDomain(event: Event, domainRef: InternalDomainRef, eventContext: EventContext) = {
+    //val eventContext = new NodeEventContext(this, event.sender, connectionData)
     val wrapped = new SendEventCommand(event, eventContext)
     domainRef.send(wrapped)
   }
@@ -307,6 +351,42 @@ class Node(val id: Future[Long])(
     val adr = Address(System)
     val pingEvent = ControlEvent.writeEvent(Ping)
     this.sendEvent(pingEvent, adr)
+  }
+
+  def generateKeyPair(author: SigningId, certifiedBy: SigningId, adr: Address): Unit = {
+
+    val generated = security.flatMap(secInstance => {
+      secInstance.generateKeyPair(author, certifiedBy)
+    })
+    security = generated.map(_._3)
+
+    generated.foreach(gen => {
+      val kp = gen._1
+      val cert = gen._2
+      val privKeyEvent = RegisterSigner(author.authorId, kp.privateKey, kp.publicKey, cert)
+      this.sendEvent(SecurityEventConverter.writeEvent(privKeyEvent), adr)
+      val certificateEvent = RegisterSignedCertificate( cert)
+      this.sendEvent(
+        SecurityEventConverter.writeEvent(certificateEvent),
+        Address(path = SecurityDomain.securityDomainPath)
+      )
+
+    })
+    generated.onFailure {
+      case e => e.printStackTrace()
+    }
+
+  }
+
+  def registerSigner(regSigner: SecRegisterSigner): Unit = {
+    println("rrregistering signer")
+    val event = regSigner.secEvent
+    this.security = for {
+
+      securityProviderWithSigner <- security.flatMap(_.registerSigner(SigningId(event.authorToken),
+        RSAKeyPairExported(event.publicKey, event.privateKey),
+        event.cert))
+    } yield securityProviderWithSigner
   }
 
   case class DomainEvent(event: Event, ctx: EventContext)

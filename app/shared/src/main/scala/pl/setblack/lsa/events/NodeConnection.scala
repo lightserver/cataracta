@@ -1,14 +1,14 @@
 package pl.setblack.lsa.events
 
 import scala.Predef
-import scala.collection.mutable.Set
+
 
 class NodeConnection(
                       val targetId: Long,
                       val protocol: Protocol,
-                      val listeningTo: Set[Seq[String]] = Set(Seq())) {
+                      var listeningTo: Set[Seq[String]] = Set(Seq())) {
   def setListeningTo(domains: Predef.Set[Seq[String]]): Unit = {
-    listeningTo ++= domains
+    listeningTo = domains
   }
 
   def send(msg: NodeMessage): Unit = {
