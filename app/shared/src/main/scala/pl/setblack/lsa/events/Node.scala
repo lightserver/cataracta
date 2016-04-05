@@ -100,16 +100,12 @@ class Node(val id: Future[Long])(
     this.id.onSuccess {
       case nodeid: Long => {
         val eventId = getNextEventId()
-        println(s"@gonna sign ${content}")
         val toSignMessage = makeSignedString(content, eventId, nodeid, adr)
-        println(s"@msg like  ${toSignMessage}")
         for {
           signature <- {
-            println("@getting signature")
             security.flatMap(_.signAs(author, toSignMessage))
           }
         } yield {
-          println(s"!!!got signeture ${signature}")
           val event = new SignedEvent(content, eventId, nodeid, signature)
           this.sendEvent(event, adr)
         }
@@ -145,7 +141,7 @@ class Node(val id: Future[Long])(
       }
       case System => result.success(this.connections.values.toSeq)
       case Target(x) => result.success(this.connections.values.filter(node => node.knows(x)).toSeq)
-      case _ => println(s" I got stupid target ${adr.target}")
+      case _ => println(s" I got some crazy target ${adr.target}")
     }
 
     result.future
@@ -274,20 +270,16 @@ class Node(val id: Future[Long])(
 
   def receiveMessagSigned(msg: NodeMessage, signed: SignedEvent, connectionData: ConnectionData) = {
 
-    println(s"received signed message ${msg}")
-    //check signature then local  - then go
     this.security.flatMap( secInstance => {
       secInstance.isValidSignature(signed.signature,
         makeSignedString(signed.content,  signed.id, signed.sender, msg.destination))
     }).foreach{
       case true => {
-        println("signature matches")
         val ctx = new NodeEventContext(this, signed.sender, connectionData,Some(signed.signature.signedBy.author))
         receiveMessageLocal(msg, ctx)
         rerouteMsg(msg)
       }
       case false =>
-        //olaboga, signature does not match
       println("olaboga signature failed")
     }
 
@@ -379,7 +371,6 @@ class Node(val id: Future[Long])(
   }
 
   def registerSigner(regSigner: SecRegisterSigner): Unit = {
-    println("rrregistering signer")
     val event = regSigner.secEvent
     this.security = for {
 

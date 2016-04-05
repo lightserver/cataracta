@@ -13,10 +13,9 @@ trait SecurityDomainProcessor {
   def getEventConverter: EventConverter[EVENT] =  SecurityEventConverter
 
    protected def processDomain(state: String, event: SecurityEvent, eventContext: EventContext): Response = {
-     println(s"processing security domain ${event}")
     event match {
       case register: RegisterSignedCertificate => {
-
+        println("registration of signed cert not implemented yet")
       }
       case signer: RegisterSigner => {
         nodeRef.send(SecRegisterSigner(signer))
