@@ -11,7 +11,7 @@ class Signer( val privateKey : RSAPrivateKey, val myCertificate : SignedCertific
 
     def sign(msg : String) : Future[MessageSignature] = {
         rsa.sign(privateKey, msg).map(
-          signedMsg => MessageSignature(signedMsg, myCertificate.info)
+          signedMsg => MessageSignature(signedMsg, myCertificate)
         )
     }
 }

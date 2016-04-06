@@ -270,20 +270,21 @@ class Node(val id: Future[Long])(
 
   def receiveMessagSigned(msg: NodeMessage, signed: SignedEvent, connectionData: ConnectionData) = {
 
-    this.security.flatMap( secInstance => {
+    this.security = this.security.flatMap( secInstance => {
       secInstance.isValidSignature(signed.signature,
         makeSignedString(signed.content,  signed.id, signed.sender, msg.destination))
-    }).foreach{
-      case true => {
-        val ctx = new NodeEventContext(this, signed.sender, connectionData,Some(signed.signature.signedBy.author))
+    }).map{
+      case (newSec, Some(x)) => {
+        val ctx = new NodeEventContext(this, signed.sender, connectionData,Some(signed.signature.signedBy.info.author))
         receiveMessageLocal(msg, ctx)
         rerouteMsg(msg)
+        newSec
       }
-      case false =>
-      println("olaboga signature failed")
+      case (newSec, None) => {
+        println("olaboga signature failed")
+        newSec
+      }
     }
-
-
 
 
   }
@@ -345,10 +346,10 @@ class Node(val id: Future[Long])(
     this.sendEvent(pingEvent, adr)
   }
 
-  def generateKeyPair(author: SigningId, certifiedBy: SigningId, adr: Address): Unit = {
+  def generateKeyPair(author: SigningId, certifiedBy: SigningId, privileges: Set[String], adr: Address): Unit = {
 
     val generated = security.flatMap(secInstance => {
-      secInstance.generateKeyPair(author, certifiedBy)
+      secInstance.generateKeyPair(author, certifiedBy, privileges)
     })
     security = generated.map(_._3)
 

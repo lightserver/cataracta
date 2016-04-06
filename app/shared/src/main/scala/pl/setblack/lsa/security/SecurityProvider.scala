@@ -1,5 +1,7 @@
 package pl.setblack.lsa.security
 
+import java.time.{Instant, LocalDateTime}
+
 import pl.setblack.lsa.cryptotpyrc.rsa.{RSAPrivateKey, RSAPublicKey}
 import pl.setblack.lsa.cryptotpyrc.{KeyPair, CryptoAlg, UniCrypto}
 
@@ -39,12 +41,12 @@ case class SecurityProvider(
       importedPublicKey => {
         rsa.digest(publicKey).flatMap(
           hash => {
-            val certificateInfo = CertificateInfo(hash, ca)
+            val certificateInfo = CertificateInfo(hash, ca, Set(), "2100-12-06T10:15:30.00Z")
             rsa.importPrivate(privateKey).flatMap(
               importedPrivKey => {
                 rsa.sign(importedPrivKey, certificateInfo.toString).map({
                   signedCertificate => {
-                    val signature = MessageSignature(signedCertificate, certificateInfo)
+                    val signature = CertificateSignature(signedCertificate, certificateInfo)
                     val signedCert = SignedCertificate(certificateInfo, signature)
                     signedCert
                   }
@@ -60,7 +62,7 @@ case class SecurityProvider(
     )
   }
 
-  def generateKeyPair(signer: SigningId, signedBy: SigningId): Future[(RSAKeyPairExported, SignedCertificate, SecurityProvider)] = {
+  def generateKeyPair(signer: SigningId, signedBy: SigningId, privileges: Set[String]): Future[(RSAKeyPairExported, SignedCertificate, SecurityProvider)] = {
     for {
       keyPair: KeyPair[RSAPublicKey, RSAPrivateKey] <- {
         val keyPairOpt = privateKeys.get(signer).flatMap(internalPriv => publicKeys.get(signer).map(internalPub => Future {
@@ -78,11 +80,12 @@ case class SecurityProvider(
       privateKey <- {
         keyPair.priv.export
       }
-      pubKeyHash <- {
-        rsa.digest(publicKey)
-      }
+      /*pubKeyHash <- {
+      rsa.digest(publicKey)
+    }*/
       exportedKeyPair = RSAKeyPairExported(publicKey, privateKey)
-      withSignedCert <- this.signCertificate(signedBy, CertificateInfo(pubKeyHash, signer))
+      withSignedCert <- this.signCertificate(signedBy,
+        CertificateInfo(publicKey, signer, Set(), "2100-12-06T10:15:30.00Z"))
       withKey <- withSignedCert._1.registerSigner(signer, exportedKeyPair, withSignedCert._2)
     } yield (exportedKeyPair,
       withSignedCert._2,
@@ -105,28 +108,57 @@ case class SecurityProvider(
 
   def signCertificate(signer: SigningId, cert: CertificateInfo): Future[(SecurityProvider, SignedCertificate)] = {
     signAs(signer, cert.toString).map(ms => {
-      val signedCert = SignedCertificate(cert, ms)
+      val signedCert = SignedCertificate(cert, CertificateSignature(ms.signedString, cert))
       (this.addCertificate(cert.author, signedCert), signedCert)
     })
   }
 
 
-  def isValidSignature(signature: MessageSignature, signedString: String): Future[Boolean] = {
-    val authorId = signature.signedBy.author
-    (for {
-    //signedLocalCertificate <- this.certificates.get(authorId)
-      localPublicKey <- {
-        val pub = this.publicKeys.get(authorId)
-        pub.foreach( k => k.export onSuccess {
-          case exported => println(s"exported pub is ${exported}")
-        })
-        pub
+  def isValidSignature(signature: MessageSignature, message: String): Future[(SecurityProvider, Option[CertificateInfo])] = {
+    val authorId = signature.signedBy.info.author
+    val publicKey = this.publicKeys.get(authorId)
+    //if there is public key  - simply check with
+    val knownCertificateOption = publicKey.map(pub => rsa.verify(pub, signature.signedString, message))
+      .map(fVerified => fVerified.map(v => {
+        if (v) Some(signature.signedBy) else None
       }
-    } yield (rsa.verify(localPublicKey, signature.signedString, signedString)))
-      .getOrElse(Future {
-        false
-      })
+      ))
+    val result:Future[(SecurityProvider, Option[CertificateInfo])] = knownCertificateOption match {
+      case Some(x) => x.map(signedCert => (this,signedCert.map(sc => sc.info)))
+      case None =>  {
+        val messagePublicKey = signature.signedBy.info.publKey
+        val authorityPublicKey = this.publicKeys.get(signature.signedBy.signature.signedBy.author)
+        val verificationOfSignature: Option[Future[Boolean]] = authorityPublicKey.map(key => rsa.verify(key,
+          signature.signedBy.signature.signedString,
+          signature.signedBy.info.toString))
+        verificationOfSignature match {
+          case Some(future) => {
+            future.flatMap( verificationPositive => if ( verificationPositive){
+              val rsaFuture = rsa.importPublic(messagePublicKey)
+              val futureSc:Future[SecurityProvider] = rsaFuture.map( imported => this.addPublicKey(authorId, imported))
+              futureSc.flatMap(fs => isValidSignature(signature, message))
+            } else {
+              Future {(this, None)}
+            })
+          }
+          case None => {
+            println("trusted authority is unnown  --sorry")
+            Future {(this, None)}
+          }
+        }
 
+      }
+      //we have to verify certificate first
+
+    }
+
+    result
+  }
+
+  private def verifyCertificate(cerInfo: CertificateInfo): Future[Option[CertificateInfo]] = {
+    Future {
+      None
+    }
   }
 
   def signAs(author: SigningId, message: String): Future[MessageSignature] = {
@@ -137,7 +169,7 @@ case class SecurityProvider(
         this.rsa.sign(privateKey, message)
       }
     } yield ({
-      MessageSignature(signature, certificate.info)
+      MessageSignature(signature, certificate)
     })
   }
 
@@ -148,7 +180,7 @@ case class SecurityProvider(
         new RSAKeyPair(importedPublicKey, importedPrivateKey)
       })
     })
-    result onFailure  {
+    result onFailure {
       case e => {
         println("failed import")
         e.printStackTrace()
