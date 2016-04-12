@@ -8,55 +8,6 @@
 .lib/
 dist/*
 target/
-lib_managed/
 ### Scala template
-*.class
-*.log
-
-# sbt specific
-.cache
-.history
-.lib/
-dist/*
-target/
-lib_managed/
-src_managed/
-project/boot/
-project/plugins/project/
-
-# Scala-IDE specific
-.scala_dependencies
-### Scala template
-*.class
-*.log
+*.iml
 .idea/
-.iml
-
-# sbt specific
-.cache
-.history
-.lib/
-dist/*
-target/
-lib_managed/
-src_managed/
-project/boot/
-project/plugins/project/
-
-# Scala-IDE specific
-.scala_dependencies
-.worksheet
-
-.worksheet
-
-src_managed/
-project/boot/
-project/plugins/project/
-
-# Scala-IDE specific
-.scala_dependencies
-.worksheet
-
-# Created by .ignore support plugin (hsz.mobi)
-
-project/project/target/
