@@ -22,7 +22,7 @@ val app = crossProject.settings(
 
   libraryDependencies ++= Seq(
     "com.lihaoyi" %%% "upickle" % "0.3.8",
-    "pl.setblack" %%% "cryptotpyrc" % "0.3-SNAPSHOT"
+    "pl.setblack" %%% "cryptotpyrc" % "0.4"
   ),
   testFrameworks += new TestFramework("utest.runner.Framework")
 
@@ -45,7 +45,6 @@ val app = crossProject.settings(
 )
 
 lazy val appJS = app.js.settings(
-
 
 )
 
