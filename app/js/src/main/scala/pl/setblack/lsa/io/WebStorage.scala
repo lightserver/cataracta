@@ -3,14 +3,10 @@ package pl.setblack.lsa.io
 import org.scalajs.dom
 import pl.setblack.lsa.events.MessageListener
 
-import scala.scalajs.js._
-import upickle.default._
 
 class WebStorage extends Storage with MessageListener{
   override def save(value: String, path: Seq[String]): Unit = {
-
     dom.window.localStorage.setItem(path.toString(), value)
-
   }
 
   override def load(path: Seq[String]): Option[String] = {

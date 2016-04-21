@@ -4,7 +4,7 @@ import pl.setblack.lsa.events.impl.NodeSendEventContent
 import pl.setblack.lsa.security.SecurityProvider
 
 
-trait BadActor[E] {
+trait BadActor[-E] {
   def receive(e : E)
 }
 
