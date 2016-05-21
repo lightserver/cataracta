@@ -1,6 +1,6 @@
 package pl.setblack.lsa.events
 
-import pl.setblack.lsa.security.SigningId
+import pl.setblack.lsa.security.{CertificateInfo, SigningId}
 
 abstract class EventContext {
   def sender: Long
@@ -16,7 +16,7 @@ abstract class EventContext {
 
   def isSecure(): Boolean
 
-  def signedBy: Option[SigningId] = None
+  def signedBy: Option[CertificateInfo] = None
 
   def connectionData: ConnectionData
 }
@@ -25,7 +25,7 @@ class NodeEventContext(
                         private val parentNode: Node,
                         override val sender: Long,
                         val connectionData: ConnectionData,
-                        override val signedBy: Option[SigningId]) extends EventContext {
+                        override val signedBy: Option[CertificateInfo]) extends EventContext {
   override def reply(eventContent: String, path: Seq[String]): Unit = {
     val adr = Address(Target(sender), path)
     parentNode.sendEvent(eventContent, adr)

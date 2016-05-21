@@ -275,7 +275,7 @@ class Node(val id: Future[Long])(
         makeSignedString(signed.content,  signed.id, signed.sender, msg.destination))
     }).map{
       case (newSec, Some(x)) => {
-        val ctx = new NodeEventContext(this, signed.sender, connectionData,Some(signed.signature.signedBy.info.author))
+        val ctx = new NodeEventContext(this, signed.sender, connectionData,Some(x))
         receiveMessageLocal(msg, ctx)
         rerouteMsg(msg)
         newSec

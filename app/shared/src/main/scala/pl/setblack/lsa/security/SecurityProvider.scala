@@ -85,7 +85,7 @@ case class SecurityProvider(
     }*/
       exportedKeyPair = RSAKeyPairExported(publicKey, privateKey)
       withSignedCert <- this.signCertificate(signedBy,
-        CertificateInfo(publicKey, signer, Set(), "2100-12-06T10:15:30.00Z"))
+        CertificateInfo(publicKey, signer, privileges, "2100-12-06T10:15:30.00Z"))
       withKey <- withSignedCert._1.registerSigner(signer, exportedKeyPair, withSignedCert._2)
     } yield (exportedKeyPair,
       withSignedCert._2,
