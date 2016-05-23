@@ -7,6 +7,7 @@ import pl.setblack.lsa.io.{DomainStorage, Storage}
 import pl.setblack.lsa.os.Reality
 import pl.setblack.lsa.secureDomain._
 import pl.setblack.lsa.security.{RSAKeyPairExported, SecurityProvider, SigningId}
+import slogging.StrictLogging
 import upickle.default._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -14,14 +15,10 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /**
   * Node represents system to register domains and send pl.setblack.lsa.events.
-  *
-  * @TODO: Increase counter after load
-  * @TODO: reorganize counter (target path)
-  *
   */
 class Node(val id: Future[Long])(
   implicit val realityConnection: Reality
-) {
+) extends StrictLogging {
 
 
   import ExecutionContext.Implicits.global
@@ -99,16 +96,23 @@ class Node(val id: Future[Long])(
   def sendSignedEvent(content: String, adr: Address, author: SigningId): Unit = {
     this.id.onSuccess {
       case nodeid: Long => {
+        logger.debug(s"send sign event ${content} with [${security}]")
         val eventId = getNextEventId()
         val toSignMessage = makeSignedString(content, eventId, nodeid, adr)
-        for {
+        ( for {
           signature <- {
+            logger.debug(s"signing msg ${toSignMessage}")
             security.flatMap(_.signAs(author, toSignMessage))
           }
         } yield {
           val event = new SignedEvent(content, eventId, nodeid, signature)
           this.sendEvent(event, adr)
+        } ) onFailure {
+          case e => {
+            logger.error("unable to sign event", e);
+          }
         }
+
       }
     }
   }

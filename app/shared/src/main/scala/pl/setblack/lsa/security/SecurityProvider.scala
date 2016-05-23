@@ -3,10 +3,10 @@ package pl.setblack.lsa.security
 import java.time.{Instant, LocalDateTime}
 
 import pl.setblack.lsa.cryptotpyrc.rsa.{RSAPrivateKey, RSAPublicKey}
-import pl.setblack.lsa.cryptotpyrc.{KeyPair, CryptoAlg, UniCrypto}
+import pl.setblack.lsa.cryptotpyrc.{CryptoAlg, KeyPair, UniCrypto}
+import slogging.StrictLogging
 
 import scala.concurrent.Future
-
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class SecurityProvider(
@@ -15,7 +15,7 @@ case class SecurityProvider(
                              publicKeys: Map[SigningId, RSAPublicKey] = Map(),
                              privateKeys: Map[SigningId, RSAPrivateKey] = Map(),
                              certificates: Map[SigningId, SignedCertificate] = Map()
-                           ) {
+                           ) extends StrictLogging{
 
   type RSAKeyPair = KeyPair[RSAPublicKey, RSAPrivateKey]
 
@@ -166,6 +166,7 @@ case class SecurityProvider(
     val certificate = this.certificates(author)
     for {
       signature <- {
+        logger.debug(s"signing ${message}")
         this.rsa.sign(privateKey, message)
       }
     } yield ({
