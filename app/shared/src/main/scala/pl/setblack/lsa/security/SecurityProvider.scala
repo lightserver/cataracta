@@ -31,8 +31,12 @@ case class SecurityProvider(
     this.copy(privateKeys = privateKeys + (ca -> key))
   }
 
-  private def addCertificate(signer: SigningId, signedCert: SignedCertificate): SecurityProvider = {
-    this.copy(certificates = certificates + (signer -> signedCert))
+  private def addCertificate(signer: SigningId, signedCert: SignedCertificate): Future[SecurityProvider] = {
+    for {
+      importedKey <- rsa.importPublic(signedCert.info.publKey)
+      addedCert = this.copy(certificates = certificates + (signer -> signedCert))
+    } yield (addedCert.addPublicKey(signer, importedKey)  )
+
   }
 
   //there may be more root CA
@@ -95,28 +99,30 @@ case class SecurityProvider(
   def registerSigner(signer: SigningId,
                      exportedKey: RSAKeyPairExported,
                      signedCert: SignedCertificate): Future[SecurityProvider] = {
-    importKeys(exportedKey.privateKey, exportedKey.publicKey).map((pair) => {
+    importKeys(exportedKey.privateKey, exportedKey.publicKey).flatMap((pair) => {
       this.addPrivateKey(signer, pair.priv)
         .addPublicKey(signer, pair.pub)
         .addCertificate(signer, signedCert)
     })
   }
 
-  def registerCertificate(author: SigningId, signedCert: SignedCertificate): SecurityProvider = {
+  def registerCertificate(author: SigningId, signedCert: SignedCertificate): Future[SecurityProvider] = {
     this.addCertificate(author, signedCert)
   }
 
   def signCertificate(signer: SigningId, cert: CertificateInfo): Future[(SecurityProvider, SignedCertificate)] = {
-    signAs(signer, cert.toString).map(ms => {
+    signAs(signer, cert.toString).flatMap(ms => {
       val signedCert = SignedCertificate(cert, CertificateSignature(ms.signedString, cert))
-      (this.addCertificate(cert.author, signedCert), signedCert)
+      (this.addCertificate(cert.author, signedCert).map( sp => (sp, signedCert)))
     })
   }
 
 
   def isValidSignature(signature: MessageSignature, message: String): Future[(SecurityProvider, Option[CertificateInfo])] = {
     val authorId = signature.signedBy.info.author
-    val publicKey = this.publicKeys.get(authorId)
+   val publicKey = this.publicKeys.get(authorId)
+   logger.debug(s"  public key for ${authorId} => ${publicKey}")
+    logger.debug(s" SP=${this}")
     //if there is public key  - simply check with
     val knownCertificateOption = publicKey.map(pub => rsa.verify(pub, signature.signedString, message))
       .map(fVerified => fVerified.map(v => {
@@ -126,6 +132,7 @@ case class SecurityProvider(
     val result:Future[(SecurityProvider, Option[CertificateInfo])] = knownCertificateOption match {
       case Some(x) => x.map(signedCert => (this,signedCert.map(sc => sc.info)))
       case None =>  {
+        logger.debug(s"not found certificate info ${knownCertificateOption}")
         val messagePublicKey = signature.signedBy.info.publKey
         val authorityPublicKey = this.publicKeys.get(signature.signedBy.signature.signedBy.author)
         val verificationOfSignature: Option[Future[Boolean]] = authorityPublicKey.map(key => rsa.verify(key,
@@ -142,13 +149,13 @@ case class SecurityProvider(
             })
           }
           case None => {
-            println("trusted authority is unnown  --sorry")
+            logger.warn(s"trusted authority is unknown  - ${authorityPublicKey.get}")
             Future {(this, None)}
           }
         }
 
       }
-      //we have to verify certificate first
+      //we have to verify certificpate first
 
     }
 

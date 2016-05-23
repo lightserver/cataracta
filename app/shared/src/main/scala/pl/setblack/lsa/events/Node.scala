@@ -27,23 +27,24 @@ class Node(val id: Future[Long])(
 
   val nodeRef: BadActorRef[NodeEvent] = realityConnection.concurrency.createSimpleActor(new NodeActor(this))
 
-
-  private val connections = new scala.collection.mutable.HashMap[Long, NodeConnection]()
-
+  //node
   private var domainRefs: Map[Seq[String], InternalDomainRef] = Map()
-
-
   private var messageListeners: Seq[MessageListener] = Seq()
-  private val loopConnection = registerConnection(id, new LoopInvocation(this))
-
   private var nextEventId: Long = 0
 
+  //dispatcher
+  private val connections = new scala.collection.mutable.HashMap[Long, NodeConnection]()
+
+  private val loopConnection = registerConnection(id, new LoopInvocation(this))
+
+  //security
   private var security: Future[SecurityProvider] = realityConnection.security
 
-
+  //---node ---
   def this(constId: Long)(implicit reality: Reality) = {
     this(Promise[Long].success(constId).future)(reality)
   }
+
 
   def initSecurityDomain() = {
     val securityDomain = new SecurityDomain("nic", nodeRef)
@@ -71,6 +72,7 @@ class Node(val id: Future[Long])(
     domainRefs contains (path)
   }
 
+  //dispatcher ---------------------------------------------------------------------------------------------------------------------
 
   def sendEvent(content: String, domain: Seq[String]): Unit = {
     val adr = Address(All, domain)
@@ -99,7 +101,7 @@ class Node(val id: Future[Long])(
         logger.debug(s"send sign event ${content} with [${security}]")
         val eventId = getNextEventId()
         val toSignMessage = makeSignedString(content, eventId, nodeid, adr)
-        ( for {
+        (for {
           signature <- {
             logger.debug(s"signing msg ${toSignMessage}")
             security.flatMap(_.signAs(author, toSignMessage))
@@ -107,9 +109,10 @@ class Node(val id: Future[Long])(
         } yield {
           val event = new SignedEvent(content, eventId, nodeid, signature)
           this.sendEvent(event, adr)
-        } ) onFailure {
+        }) onFailure {
           case e => {
-            logger.error("unable to sign event", e);
+            logger.error("unable to sign event", e)
+            e.printStackTrace()
           }
         }
 
@@ -151,7 +154,7 @@ class Node(val id: Future[Long])(
     result.future
   }
 
-  def createClientIdMessage(clientId: Long, token: String): Future[NodeMessage] = {
+  private def createClientIdMessage(clientId: Long, token: String): Future[NodeMessage] = {
     this.id.map {
       case nodeId: Long => {
         val event = new UnsignedEvent(write[ControlEvent](RegisteredClient(clientId, nodeId, token)), 1, nodeId)
@@ -161,7 +164,17 @@ class Node(val id: Future[Long])(
   }
 
 
-  def registerConnection(id: Long, protocol: Protocol): Future[NodeConnection] = registerConnection(Promise[Long].success(id).future, protocol)
+  def registerConnection(id: Long, token: Option[String], protocol: Protocol): Future[NodeConnection] = {
+    val connection = registerConnection(Promise[Long].success(id).future, protocol)
+    for {
+      clientToken <- token
+      controlMessage = this.createClientIdMessage(id, clientToken)
+      vc <- connection
+      msg <- controlMessage
+    } vc.send(msg)
+
+    connection
+  }
 
 
   def registerConnection(futureId: Future[Long], protocol: Protocol): Future[NodeConnection] = {
@@ -259,7 +272,7 @@ class Node(val id: Future[Long])(
     * Node receives message here.
     */
   private def receiveMessageUnsigned(msg: NodeMessage, connectionData: ConnectionData) = {
-    val ctx = new NodeEventContext(this, msg.event.sender, connectionData,None)
+    val ctx = new NodeEventContext(this, msg.event.sender, connectionData, None)
     receiveMessageLocal(msg, ctx)
     rerouteMsg(msg)
   }
@@ -274,18 +287,18 @@ class Node(val id: Future[Long])(
 
   def receiveMessagSigned(msg: NodeMessage, signed: SignedEvent, connectionData: ConnectionData) = {
 
-    this.security = this.security.flatMap( secInstance => {
+    this.security = this.security.flatMap(secInstance => {
       secInstance.isValidSignature(signed.signature,
-        makeSignedString(signed.content,  signed.id, signed.sender, msg.destination))
-    }).map{
+        makeSignedString(signed.content, signed.id, signed.sender, msg.destination))
+    }).map {
       case (newSec, Some(x)) => {
-        val ctx = new NodeEventContext(this, signed.sender, connectionData,Some(x))
+        val ctx = new NodeEventContext(this, signed.sender, connectionData, Some(x))
         receiveMessageLocal(msg, ctx)
         rerouteMsg(msg)
         newSec
       }
       case (newSec, None) => {
-        println("olaboga signature failed")
+        logger.warn(s"signature failed for message [${msg.event.content}]")
         newSec
       }
     }
@@ -362,7 +375,7 @@ class Node(val id: Future[Long])(
       val cert = gen._2
       val privKeyEvent = RegisterSigner(author.authorId, kp.privateKey, kp.publicKey, cert)
       this.sendEvent(SecurityEventConverter.writeEvent(privKeyEvent), adr)
-      val certificateEvent = RegisterSignedCertificate( cert)
+      val certificateEvent = RegisterSignedCertificate(cert)
       this.sendEvent(
         SecurityEventConverter.writeEvent(certificateEvent),
         Address(path = SecurityDomain.securityDomainPath)

@@ -1,14 +1,15 @@
 package pl.setblack.lsa.events
 
 import pl.setblack.lsa.concurrency.{FakeSecurity, NoConcurrencySystem}
-import pl.setblack.lsa.os.{SimpleReality, Reality}
+import pl.setblack.lsa.os.{Reality, SimpleReality}
 
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParSeq
-import scala.concurrent.{Future, Await}
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.postfixOps
+
 class NodeTest extends org.scalatest.FunSpec {
 
   val storage = new FakeStorage
@@ -78,7 +79,7 @@ class NodeTest extends org.scalatest.FunSpec {
       val node1 = new Node(1)
       val node2 = new Node(2)
       val connection = new LocalInvocation(node2)
-      node1.registerConnection(2, connection)
+      node1.registerConnection(2, None, connection)
       val node2Addr = new Address(Target(2), Seq(""))
       val history = new HistoryListener
       node2.registerMessageListener(history)
