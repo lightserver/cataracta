@@ -2,7 +2,8 @@ package pl.setblack.lsa.events
 
 
 import pl.setblack.lsa.concurrency.{BadActorRef, ConcurrencySystem}
-import pl.setblack.lsa.events.impl._
+import pl.setblack.lsa.events.domains.DomainsManager
+import pl.setblack.lsa.events.impl.{EventWrapper, _}
 import pl.setblack.lsa.io.{DomainStorage, Storage}
 import pl.setblack.lsa.os.Reality
 import pl.setblack.lsa.secureDomain._
@@ -19,17 +20,15 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class Node(val id: Future[Long])(
   implicit val realityConnection: Reality
 ) extends StrictLogging {
-
+  type InternalDomainRef = BadActorRef[EventWrapper]
 
   import ExecutionContext.Implicits.global
-
-  type InternalDomainRef = BadActorRef[EventWrapper]
 
   val nodeRef: BadActorRef[NodeEvent] = realityConnection.concurrency.createSimpleActor(new NodeActor(this))
 
   //node
-  private var domainRefs: Map[Seq[String], InternalDomainRef] = Map()
-  private var messageListeners: Seq[MessageListener] = Seq()
+  private var domainsManager = new DomainsManager
+
   private var nextEventId: Long = 0
 
   //dispatcher
@@ -45,7 +44,7 @@ class Node(val id: Future[Long])(
     this(Promise[Long].success(constId).future)(reality)
   }
 
-
+  //Jarek: evacuate it somewhere
   def initSecurityDomain() = {
     val securityDomain = new SecurityDomain("nic", nodeRef)
     val privateSecurityDomain = new PrivateSecurityDomain("nic", nodeRef)
@@ -53,24 +52,32 @@ class Node(val id: Future[Long])(
     registerDomain(privateSecurityDomain.path, privateSecurityDomain)
   }
 
+  //Jarek:domains  should load themselves
   def loadDomains() = {
-    this.domainRefs.values.foreach(domainRef => domainRef.send(LoadDomainCommand))
+    this.domainsManager.loadDomains()
   }
 
+  def hasDomain(path: Seq[String]): Boolean = this.domainsManager.hasDomain(path)
+
   def registerMessageListener(listener: MessageListener): Unit = {
-    messageListeners = messageListeners :+ listener
+    this.domainsManager = domainsManager.registerMessageListener(listener)
   }
 
   def registerDomain[O](path: Seq[String], domain: Domain[O]) = {
     val actor = new DomainActor(domain, new DomainStorage(path, realityConnection.storage), nodeRef)
-    val domainRef: InternalDomainRef = realityConnection.concurrency.createSimpleActor(actor)
-    domainRefs = domainRefs + (path -> domainRef)
+    val domainRef: BadActorRef[EventWrapper] = realityConnection.concurrency.createSimpleActor(actor)
+    domainsManager = domainsManager.withDomain(path, domainRef)
+
     new DomainRef[domain.EVENT](path, domain.getEventConverter, nodeRef)
   }
 
-  private[events] def hasDomain(path: Seq[String]): Boolean = {
-    domainRefs contains (path)
+
+  def resync(): Unit = {
+    this.id onSuccess {
+      case nodeId => this.domainsManager.resync(nodeId)
+    }
   }
+
 
   //dispatcher ---------------------------------------------------------------------------------------------------------------------
 
@@ -194,25 +201,22 @@ class Node(val id: Future[Long])(
   }
 
   def registerDomainListener[O, X](listener: DomainListener[O, X], path: Seq[String]): Unit = {
-    this.filterDomains(path).foreach(d => d.send(RegisterListener[O, X](listener)))
-
+    domainsManager.filterDomains(path).foreach(d => d.send(RegisterListener[O, X](listener)))
   }
 
   private def resyncDomain(sync: ResyncDomain, connectionData: ConnectionData): Unit = {
-    this.filterDomains(sync.domain).map(
+    domainsManager.filterDomains(sync.domain).map(
       domainRef => {
         this.id onSuccess { case nodeId =>
           domainRef.send(new ResyncDomainCommand(sync, nodeId))
         }
-
-
       }
     )
 
   }
 
   private def restoreDomain(serialized: RestoreDomain): Unit = {
-    this.filterDomains(serialized.domain).foreach(domainRef => {
+    domainsManager.filterDomains(serialized.domain).foreach(domainRef => {
       domainRef.send(new RestoreDomainCommand(serialized))
     })
   }
@@ -261,12 +265,6 @@ class Node(val id: Future[Long])(
     }
   }
 
-
-  private def filterDomains(path: Seq[String]): Seq[InternalDomainRef] = {
-    val res = this.domainRefs
-      .filter((v) => path.startsWith(v._1)).values.toSeq
-    res
-  }
 
   /**
     * Node receives message here.
@@ -322,20 +320,8 @@ class Node(val id: Future[Long])(
     if (msg.destination.target == System) {
       processSysMessage(msg.event, ctx)
     } else {
-      receiveLocalDomainMessage(msg, ctx)
+      domainsManager.receiveLocalDomainMessage(msg, ctx)
     }
-  }
-
-  private def receiveLocalDomainMessage(msg: NodeMessage, ctx: EventContext) = {
-    messageListeners foreach (listener => listener.onMessage(msg))
-    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v, ctx))
-  }
-
-
-  private def sendEvenToDomain(event: Event, domainRef: InternalDomainRef, eventContext: EventContext) = {
-    //val eventContext = new NodeEventContext(this, event.sender, connectionData)
-    val wrapped = new SendEventCommand(event, eventContext)
-    domainRef.send(wrapped)
   }
 
 
@@ -344,18 +330,6 @@ class Node(val id: Future[Long])(
     this.nextEventId
   }
 
-  def resync() = {
-    this.domainRefs.foreach(
-      kv => syncDomain(kv._1, kv._2, true))
-  }
-
-
-  private def syncDomain(path: Seq[String], domain: InternalDomainRef, syncBack: Boolean) = {
-    this.id.onSuccess {
-      case nodeId: Long =>
-        domain.send(new SyncDomainCommand(nodeId, syncBack))
-    }
-  }
 
   def ping() = {
     val adr = Address(System)
