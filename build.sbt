@@ -15,7 +15,7 @@ val app = crossProject.settings(
    isSnapshot := true,
    name := "cataracta",
    organization := "pl.setblack.lsa",
-   version := "0.97",
+   version := "0.98",
    scalaVersion := "2.11.8",
   unmanagedSourceDirectories in Compile +=
     baseDirectory.value  / "shared" / "main" / "scala",
