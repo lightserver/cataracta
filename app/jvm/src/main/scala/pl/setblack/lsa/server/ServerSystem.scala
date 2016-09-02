@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, ActorSystem}
 import pl.setblack.lsa.boot.GenericSystem
 import pl.setblack.lsa.concurrency.AkkaConcurrencySystem
 import pl.setblack.lsa.events.{ConnectionData, Node, NodeMessage}
-import pl.setblack.lsa.io.FileStore
 import pl.setblack.lsa.os.SimpleReality
 import pl.setblack.lsa.security.{KnownKey, SecurityProvider, SignedCertificate}
 import slogging.StrictLogging
@@ -21,7 +20,7 @@ class ServerSystem(nodeId: Long,
 
   var nextClientNodeId: Long = 2048 * nodeId + scala.util.Random.nextInt(1024)
   val connectionData = mutable.Map[Long, ConnectionData]()
-  val storage = createFileStorage()
+  //val storage = createFileStorage()
 
 
   def nextClientNode: Long = {
@@ -29,13 +28,10 @@ class ServerSystem(nodeId: Long,
     nextClientNodeId
   }
 
-  private def createFileStorage() = {
-    val fileStorePath = system.settings.config.getString("app.file.filesDir")
-    new FileStore(fileStorePath)
-  }
+
 
   override def createMainNode(): Node = {
-    val reality = SimpleReality(storage, new AkkaConcurrencySystem(system), createSecurityProvider)
+    val reality = JVMRealityConnection.create(super.createSecurityProvider)
     val node = new Node(Promise[Long].success(nodeId).future)(reality)
     node
   }

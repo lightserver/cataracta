@@ -10,10 +10,10 @@ import scala.util.{Failure, Success}
 
 class JVMServer(rootCertificate: SignedCertificate, knownKey: KnownKey) {
 
-  def start() : Unit = {
-    implicit val system = ActorSystem()
+  def start(implicit  system : ActorSystem, materializer: ActorMaterializer ) : Node = {
+    //implicit val system = ActorSystem()
     import system.dispatcher
-    implicit val materializer = ActorMaterializer()
+ //   implicit val materializer = ActorMaterializer()
 
     val config = system.settings.config
     val interface = config.getString("app.interface")
@@ -33,6 +33,7 @@ class JVMServer(rootCertificate: SignedCertificate, knownKey: KnownKey) {
         println(s"Binding failed with ${e.getMessage}")
         system.shutdown()
     }
+    serverNode.mainNode
   }
 
 }

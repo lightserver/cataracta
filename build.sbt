@@ -41,7 +41,7 @@ val app = crossProject.settings(
     "com.typesafe.akka" %% "akka-remote" % "2.4.6",
     "org.scalaz" %% "scalaz-core" % "7.1.2",
     "com.typesafe.akka" %% "akka-http-experimental" % "2.4.6",
-    "org.scalatest" %% "scalatest" % "2.2.1" % "test"
+    "org.scalatest" %% "scalatest" % "3.0.0" % "test"
   )
 )
 

@@ -2,9 +2,9 @@ package pl.setblack.lsa.events
 
 import pl.setblack.lsa.concurrency.{FakeSecurity, NoConcurrencySystem}
 import pl.setblack.lsa.os.{Reality, SimpleReality}
+import pl.setblack.lsa.resources.FakeResources
 
 import scala.collection.mutable
-import scala.collection.parallel.mutable.ParSeq
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,7 +16,7 @@ class NodeTest extends org.scalatest.FunSpec {
   val noconcurrency = new NoConcurrencySystem
  implicit val reality : Reality = SimpleReality(storage, noconcurrency, Future {
    new FakeSecurity
- })
+ }, new FakeResources)
   describe("Node") {
 
     describe("when created") {
