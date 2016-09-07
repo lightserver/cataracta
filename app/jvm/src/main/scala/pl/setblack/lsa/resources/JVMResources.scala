@@ -9,8 +9,10 @@ class JVMResources (implicit val executionContext: ExecutionContext) extends Uni
     Future {
       val inputStream  = getClass.getResourceAsStream(s"/$path")
       if ( inputStream != null) {
+        println("input stream found")
         Success( new JVMResource(inputStream))
       } else {
+        println("nuthing input stream found ")
         Failure( new FileNotFoundException(s"I do not have $path"))
       }
     }

@@ -13,25 +13,21 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 class ServerSystem(nodeId: Long,
                    rootCertificate: SignedCertificate,
-                   rootKey : KnownKey
-                   )(implicit system: ActorSystem,   executionContext : ExecutionContext)
+                   rootKey: KnownKey
+                  )(implicit system: ActorSystem, executionContext: ExecutionContext)
   extends GenericSystem(rootCertificate)
     with StrictLogging {
 
   var nextClientNodeId: Long = 2048 * nodeId + scala.util.Random.nextInt(1024)
   val connectionData = mutable.Map[Long, ConnectionData]()
-  //val storage = createFileStorage()
-
 
   def nextClientNode: Long = {
     nextClientNodeId = nextClientNodeId + 1
     nextClientNodeId
   }
 
-
-
   override def createMainNode(): Node = {
-    val reality = JVMRealityConnection.create(super.createSecurityProvider)
+    val reality = JVMRealityConnection.create(createSecurityProvider)
     val node = new Node(Promise[Long].success(nodeId).future)(reality)
     node
   }
@@ -62,9 +58,14 @@ class ServerSystem(nodeId: Long,
   }
 
   def registerToRemote(theBoard: ActorRef): Unit = {
-    val remoteSystems: Seq[String] = scala.collection.JavaConversions.asScalaBuffer(system.settings.config.getStringList("app.node.connectTo")).toSeq
+    if (system.settings.config.hasPath("app.node.connectTo")) {
 
-    remoteSystems.foreach(remotePath => registerToRemoteActor(theBoard, remotePath))
+      val remoteActors = system.settings.config.getStringList("app.node.connectTo")
+
+      val remoteSystems: Seq[String] = scala.collection.JavaConversions.asScalaBuffer(remoteActors).toSeq
+
+      remoteSystems.foreach(remotePath => registerToRemoteActor(theBoard, remotePath))
+    }
   }
 
   override protected def createSecurityProvider: Future[SecurityProvider] = {

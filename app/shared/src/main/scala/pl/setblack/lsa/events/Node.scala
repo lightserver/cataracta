@@ -188,6 +188,8 @@ class Node(val id: Future[Long])(
     val futureConnection = Promise[NodeConnection]
     futureId onSuccess {
       case nodeId: Long => {
+        println("jest sukces")
+        println(s"mam id=${nodeId}")
         val connection = new NodeConnection(nodeId, protocol)
         this.connections += (nodeId -> connection)
         futureConnection.success(connection)

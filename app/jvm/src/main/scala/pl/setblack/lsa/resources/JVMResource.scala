@@ -7,6 +7,8 @@ import scala.io.Source
 
 class JVMResource(val inputStream: InputStream) extends UniResource {
   override def asString: String = {
-      Source.fromInputStream(inputStream).mkString
+      val result = Source.fromInputStream(inputStream).mkString
+    println(s"result=${result}")
+    result
   }
 }
