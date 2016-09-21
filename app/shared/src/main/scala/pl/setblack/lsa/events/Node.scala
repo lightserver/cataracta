@@ -240,7 +240,7 @@ class Node(val id: Future[Long])(
             case sync: ResyncDomain => resyncDomain(sync, ctx.connectionData)
             case serialized: RestoreDomain => restoreDomain(serialized)
             case listen: ListenDomains => listenDomains(listen, ev.sender)
-            case Ping => {}
+            case Ping => { logger.debug("got ping")}
           }
         }
     }

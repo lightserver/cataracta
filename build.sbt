@@ -13,6 +13,7 @@ scalaVersion := "2.11.8"
 
 val app = crossProject.settings(
    isSnapshot := true,
+
    name := "cataracta",
    organization := "pl.setblack.lsa",
    version := "0.98",

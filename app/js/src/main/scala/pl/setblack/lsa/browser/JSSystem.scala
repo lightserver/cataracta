@@ -8,10 +8,11 @@ import pl.setblack.lsa.os.SimpleReality
 import pl.setblack.lsa.resources.JSResources
 import pl.setblack.lsa.security.SignedCertificate
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
-class JSSystem (val clientId: Future[Long],rootCertificate : SignedCertificate)  extends GenericSystem(rootCertificate){
-  import scala.concurrent.ExecutionContext.Implicits.global
+class JSSystem (val clientId: Future[Long],rootCertificate : Option[SignedCertificate])
+               (implicit  executionContext: ExecutionContext)
+  extends GenericSystem(rootCertificate){
 
 
   override def createMainNode(): Node = {

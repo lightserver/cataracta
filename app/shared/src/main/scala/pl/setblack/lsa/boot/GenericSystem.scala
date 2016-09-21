@@ -7,9 +7,10 @@ import pl.setblack.lsa.io.Storage
 import pl.setblack.lsa.security.{SecurityProvider, SignedCertificate, SigningId}
 import upickle.default._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-abstract class GenericSystem(val rootCertificate : SignedCertificate) {
+abstract class GenericSystem(val rootCertificate : Option[SignedCertificate])
+                            (implicit executionContext: ExecutionContext) {
 
   val mainNode = createMainNode
 
@@ -25,11 +26,11 @@ abstract class GenericSystem(val rootCertificate : SignedCertificate) {
   }
 
   protected def createSecurityProvider: Future[SecurityProvider] = {
-
     val securityProvider = new SecurityProvider()
-    val certificate = rootCertificate
-    securityProvider
-      .registerCertificate(certificate.info.author, certificate)
+    rootCertificate.map(
+      certificate => securityProvider
+        .registerCertificate(certificate.info.author, certificate)
+    ).getOrElse(Future {securityProvider})
   }
 
   def initSecurity() = {

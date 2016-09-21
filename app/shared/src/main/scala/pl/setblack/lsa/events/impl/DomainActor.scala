@@ -1,18 +1,22 @@
 package pl.setblack.lsa.events.impl
 
-import pl.setblack.lsa.concurrency.{BadActorRef, BadActor}
+import pl.setblack.lsa.concurrency.{BadActor, BadActorRef}
 import pl.setblack.lsa.events._
 import pl.setblack.lsa.io.DomainStorage
+import slogging.LazyLogging
 import upickle.default._
 
-class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val nodeRef: BadActorRef[NodeEvent]) extends BadActor[EventWrapper] {
+class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val nodeRef: BadActorRef[NodeEvent])
+  extends BadActor[EventWrapper] with LazyLogging {
 
 
 
   override def receive(e: EventWrapper): Unit = {
+    logger.debug(s"received event ${e} of domain:${domain.path}")
     e match {
       case LoadDomainCommand => storage.loadEvents(domain) //@todo inc events counter
       case ev: SendEventCommand => {
+
         val result = domain.receiveEvent(ev.event, ev.ctx)
         if (result.persist) {
           saveEvent(ev.event, domain.path)

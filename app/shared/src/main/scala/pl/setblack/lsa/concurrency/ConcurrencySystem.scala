@@ -2,6 +2,7 @@ package pl.setblack.lsa.concurrency
 
 import pl.setblack.lsa.events.impl.NodeSendEventContent
 import pl.setblack.lsa.security.SecurityProvider
+import slogging.LazyLogging
 
 
 trait BadActor[-E] {
@@ -17,7 +18,7 @@ trait BadActorRef[E] {
 }
 
 
-class NoConcurrencySystem extends ConcurrencySystem{
+class NoConcurrencySystem extends ConcurrencySystem with LazyLogging{
 
   override def createSimpleActor[BAD <: BadActor[E], E](obj: BAD): BadActorRef[E] = {
     new JustDoItRef(obj)
@@ -25,7 +26,8 @@ class NoConcurrencySystem extends ConcurrencySystem{
 
   class JustDoItRef[E](val actor : BadActor[E]) extends BadActorRef[E] {
     override def send(event: E): Unit = {
-      actor.receive(event)
+      logger.debug(s"received event  ${event}")
+        actor.receive(event)
     }
   }
 }

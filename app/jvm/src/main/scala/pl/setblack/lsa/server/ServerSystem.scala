@@ -2,9 +2,7 @@ package pl.setblack.lsa.server
 
 import akka.actor.{ActorRef, ActorSystem}
 import pl.setblack.lsa.boot.GenericSystem
-import pl.setblack.lsa.concurrency.AkkaConcurrencySystem
 import pl.setblack.lsa.events.{ConnectionData, Node, NodeMessage}
-import pl.setblack.lsa.os.SimpleReality
 import pl.setblack.lsa.security.{KnownKey, SecurityProvider, SignedCertificate}
 import slogging.StrictLogging
 
@@ -12,10 +10,10 @@ import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 class ServerSystem(nodeId: Long,
-                   rootCertificate: SignedCertificate,
-                   rootKey: KnownKey
+                   initialRootCertificate: Option[SignedCertificate],
+                   initialRootKey: Option[KnownKey]
                   )(implicit system: ActorSystem, executionContext: ExecutionContext)
-  extends GenericSystem(rootCertificate)
+  extends GenericSystem(initialRootCertificate)
     with StrictLogging {
 
   var nextClientNodeId: Long = 2048 * nodeId + scala.util.Random.nextInt(1024)
@@ -69,11 +67,17 @@ class ServerSystem(nodeId: Long,
   }
 
   override protected def createSecurityProvider: Future[SecurityProvider] = {
-    val provider = super.createSecurityProvider
-    provider.flatMap(_.registerSigner(
-      rootKey.author, rootKey.exported, rootCertificate)
-    )
-
+    val initialSecurityProvider = super.createSecurityProvider
+    for {
+      provider <- initialSecurityProvider
+      nextProvider <- (
+          for {
+            certificate <- initialRootCertificate
+            key <- initialRootKey
+          } yield provider.registerSigner(key.author, key.exported, certificate)
+          ).getOrElse(initialSecurityProvider)
+    }  yield nextProvider
   }
+
 }
 

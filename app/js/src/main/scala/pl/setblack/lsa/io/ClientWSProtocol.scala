@@ -47,7 +47,7 @@ class ClientWSProtocol(var connection: WebSocket, val uriProvider: UriProvider, 
   private def initPings(): Unit = {
     window.setInterval( () => {
       node.ping()
-    } , 30000)
+    } , 10000)
   }
 }
 

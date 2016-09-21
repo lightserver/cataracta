@@ -8,12 +8,12 @@ import pl.setblack.lsa.security.{KnownKey, SignedCertificate}
 
 import scala.util.{Failure, Success}
 
-class JVMServer(rootCertificate: SignedCertificate, knownKey: KnownKey) {
+class JVMNexus(rootCertificate: Option[SignedCertificate] = None, knownKey: Option[KnownKey] = None) {
 
   def start(implicit  system : ActorSystem, materializer: ActorMaterializer ) : Node = {
-    //implicit val system = ActorSystem()
+
     import system.dispatcher
- //   implicit val materializer = ActorMaterializer()
+
 
     val config = system.settings.config
     val interface = config.getString("app.interface")
