@@ -21,6 +21,8 @@ class NodeActor(val node: Node) extends LazyLogging with BadActor[NodeEvent] {
         node.registerSigner(regSigner)
       case gen: SecGenerateKeyPair =>
         node.generateKeyPair(gen.author, gen.certifiedBy, gen.privileges, gen.adr)
+      case restore : RestoreDomainNodeEvent =>
+        node.restoreDomain(restore.path)
     }
   }
 }
@@ -40,3 +42,5 @@ case class SecGenerateKeyPair(
                                certifiedBy: SigningId,
                                privileges: Set[String],
                                adr: Address) extends NodeEvent
+
+case class RestoreDomainNodeEvent( path: Seq[String]) extends NodeEvent

@@ -20,6 +20,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class Node(val id: Future[Long])(
   implicit val realityConnection: Reality
 ) extends StrictLogging {
+
+
   type InternalDomainRef = BadActorRef[EventWrapper]
 
   import ExecutionContext.Implicits.global
@@ -68,7 +70,11 @@ class Node(val id: Future[Long])(
     val domainRef: BadActorRef[EventWrapper] = realityConnection.concurrency.createSimpleActor(actor)
     domainsManager = domainsManager.withDomain(path, domainRef)
 
-    new DomainRef[domain.EVENT](path, domain.getEventConverter, nodeRef)
+    new DomainRef[domain.EVENT](
+      path,
+      domain.getEventConverter,
+      nodeRef
+    )
   }
 
 
@@ -223,6 +229,14 @@ class Node(val id: Future[Long])(
     })
   }
 
+  private[events] def restoreDomain(path: Seq[String]): Unit = {
+    this.id onSuccess { case nodeId: Long =>
+      domainsManager.filterDomains(path).foreach(domainRef => {
+          domainRef.send(LoadDomainCommand)
+          domainRef.send(SyncDomainCommand(nodeId, true))
+      })
+    }
+  }
 
   def listenDomains(listen: ListenDomains, sender: Long) = {
     this.connections.get(sender).foreach(nodeConnection => nodeConnection.setListeningTo(listen.domains))
