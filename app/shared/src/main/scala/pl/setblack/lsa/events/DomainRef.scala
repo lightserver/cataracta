@@ -6,10 +6,9 @@ import pl.setblack.lsa.security.SigningId
 
 class DomainRef[EVENT](
                         val path: Seq[String],
-                        val converter: EventConverter[EVENT],
                         val nodeRef: BadActorRef[NodeEvent]
 
-                      ) {
+                      ) (implicit val converter: EventConverter[EVENT]) {
 
   def send(e: EVENT, endpoint: Endpoint = All): Unit = {
     nodeRef.send(NodeSendEventContent(converter.writeEvent(e), Address(endpoint, path)))

@@ -6,7 +6,7 @@ import pl.setblack.lsa.io.DomainStorage
 import slogging.LazyLogging
 import upickle.default._
 
-class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val nodeRef: BadActorRef[NodeEvent])
+class DomainActor[O, EVENT](val domain: Domain[O, EVENT], val storage: DomainStorage, val nodeRef: BadActorRef[NodeEvent])
   extends BadActor[EventWrapper] with LazyLogging {
 
 
@@ -36,7 +36,7 @@ class DomainActor[O](val domain: Domain[O], val storage: DomainStorage, val node
       case restore: RestoreDomainCommand => restoreDomain(restore.sync.serialized)
       case sync: SyncDomainCommand => syncDomain(sync.nodeId, sync.syncBack)
       case regListener  :RegisterListener[ _, _ ] =>
-        domain.registerListener( regListener.listener.asInstanceOf[DomainListener[O, domain.EVENT]] )
+        domain.registerListener( regListener.listener.asInstanceOf[DomainListener[O, EVENT]] )
 
     }
 

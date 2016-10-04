@@ -1,8 +1,7 @@
 package pl.setblack.lsa.events
 
-abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
-
-  type EVENT
+abstract class Domain[O ,EVENT](private var domainState: O, val path: Seq[String])
+                               (implicit val eventConverter : EventConverter[EVENT]){
 
   var recentEvents:scala.collection.mutable.Map[Long,Seq[Long]] = scala.collection.mutable.HashMap[Long, Seq[Long]]()
   var listeners = Seq[DomainListener[O, EVENT]]()
@@ -10,12 +9,10 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
   private[events] def getSerializer : Option[DomainSerializer[O]] = None
 
-  def getEventConverter : EventConverter[EVENT]
-
   protected def processDomain(state : O, event:EVENT, eventContext : EventContext ) : Response
 
   private def processDomain(state: O, event: Event, eventContext: EventContext ): Response = {
-      processDomain(state, getEventConverter.readEvent(event.content), eventContext)
+      processDomain(state, eventConverter.readEvent(event.content), eventContext)
   }
 
   def getState = domainState
@@ -40,7 +37,7 @@ abstract class Domain[O](private var domainState: O, val path: Seq[String]) {
 
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
-      val convertedEvent = getEventConverter.readEvent(event.content)
+      val convertedEvent = eventConverter.readEvent(event.content)
       val result = processDomain(domainState, convertedEvent, eventContext)
       if ( result.persist) {
           eventsHistory += event

@@ -8,7 +8,7 @@ class SecurityDomain(
                       val x: String,
                       val nodeRef: BadActorRef[NodeEvent]
                     )
-  extends Domain[String](x, SecurityDomain.securityDomainPath)
+  extends Domain[String, SecurityEvent](x, SecurityDomain.securityDomainPath)
     with SecurityDomainProcessor {
 }
 

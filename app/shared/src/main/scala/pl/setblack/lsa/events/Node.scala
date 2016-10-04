@@ -6,6 +6,7 @@ import pl.setblack.lsa.events.domains.DomainsManager
 import pl.setblack.lsa.events.impl.{EventWrapper, _}
 import pl.setblack.lsa.io.{DomainStorage, Storage}
 import pl.setblack.lsa.os.Reality
+import pl.setblack.lsa.secureDomain.SecurityEvent.SecurityEventConverter
 import pl.setblack.lsa.secureDomain._
 import pl.setblack.lsa.security.{RSAKeyPairExported, SecurityProvider, SigningId}
 import slogging.StrictLogging
@@ -65,16 +66,15 @@ class Node(val id: Future[Long])(
     this.domainsManager = domainsManager.registerMessageListener(listener)
   }
 
-  def registerDomain[O](path: Seq[String], domain: Domain[O]) = {
+  def registerDomain[O, EVENT](path: Seq[String], domain: Domain[O, EVENT]) = {
     val actor = new DomainActor(domain, new DomainStorage(path, realityConnection.storage), nodeRef)
     val domainRef: BadActorRef[EventWrapper] = realityConnection.concurrency.createSimpleActor(actor)
     domainsManager = domainsManager.withDomain(path, domainRef)
 
-    new DomainRef[domain.EVENT](
+    new DomainRef[EVENT](
       path,
-      domain.getEventConverter,
       nodeRef
-    )
+    )(domain.eventConverter)
   }
 
 

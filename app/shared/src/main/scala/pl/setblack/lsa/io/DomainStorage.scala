@@ -15,7 +15,7 @@ class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
     sysStorage.save( saveCounter.toString, getSummaryPath())
   }
 
-  def saveDomain( domain : Domain[_]) = {
+  def saveDomain( domain : Domain[_,_]) = {
 
 
   }
@@ -31,7 +31,7 @@ class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
    }
  }
 
-  def loadEvents(domain: Domain[_]):Long = {
+  def loadEvents(domain: Domain[_,_]):Long = {
     val ctx = new NullContext
     sysStorage.load(getSummaryPath()).map (
       storedNumber => {
