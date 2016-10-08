@@ -1,6 +1,6 @@
 package pl.setblack.lsa.events
 
-abstract class Domain[O ,EVENT](private var domainState: O, val path: Seq[String])
+abstract class Domain[O ,EVENT](private var domainState: O)
                                (implicit val eventConverter : EventConverter[EVENT]){
 
   var recentEvents:scala.collection.mutable.Map[Long,Seq[Long]] = scala.collection.mutable.HashMap[Long, Seq[Long]]()

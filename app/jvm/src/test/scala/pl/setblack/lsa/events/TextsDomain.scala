@@ -3,8 +3,8 @@ package pl.setblack.lsa.events
 import scala.collection.mutable.ArrayBuffer
 
 class TextsDomain extends Domain[ArrayBuffer[String], String](
-    new ArrayBuffer[String](),
-     Seq("")) (TextDomain.stringConverter)
+    new ArrayBuffer[String]()
+     ) (TextDomain.stringConverter)
       {
    override def processDomain( stateObject: ArrayBuffer[String], event : String, context :EventContext) = {
        stateObject += event

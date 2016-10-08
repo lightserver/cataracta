@@ -14,6 +14,8 @@ abstract class EventContext {
 
   def send(address: Address, eventContent: String): Unit
 
+  def createDomain[O, EVENT](path : Seq[String], domain : Domain[O, EVENT] ) : Option[DomainRef[EVENT]]
+
   def isSecure(): Boolean
 
   def signedBy: Option[CertificateInfo] = None
@@ -39,7 +41,9 @@ class NodeEventContext(
     parentNode.id.value.get.get == sender
   }
 
-
+  override def createDomain[O, EVENT](path: Seq[String], domain: Domain[O, EVENT]): Option[DomainRef[EVENT]] = {
+    Some(parentNode.registerDomain(path, domain))
+  }
 }
 
 class NullContext extends EventContext {
@@ -58,5 +62,6 @@ class NullContext extends EventContext {
 
   override def isSecure(): Boolean = true
 
-
+  override def createDomain[O, EVENT](path: Seq[String], domain: Domain[O, EVENT])
+    : Option[DomainRef[EVENT]] = None
 }

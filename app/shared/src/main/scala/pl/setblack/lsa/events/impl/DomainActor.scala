@@ -6,20 +6,24 @@ import pl.setblack.lsa.io.DomainStorage
 import slogging.LazyLogging
 import upickle.default._
 
-class DomainActor[O, EVENT](val domain: Domain[O, EVENT], val storage: DomainStorage, val nodeRef: BadActorRef[NodeEvent])
+class DomainActor[O, EVENT](
+                             val domain: Domain[O, EVENT],
+                              val storage: DomainStorage,
+                             val nodeRef: BadActorRef[NodeEvent],
+                             val path :Seq[String])
   extends BadActor[EventWrapper] with LazyLogging {
 
 
 
   override def receive(e: EventWrapper): Unit = {
-    logger.debug(s"received event ${e} of domain:${domain.path}")
+    logger.debug(s"received event ${e} ")
     e match {
       case LoadDomainCommand => storage.loadEvents(domain) //@todo inc events counter
       case ev: SendEventCommand => {
 
         val result = domain.receiveEvent(ev.event, ev.ctx)
         if (result.persist) {
-          saveEvent(ev.event, domain.path)
+          saveEvent(ev.event, path)
         }
       }
 
@@ -44,7 +48,7 @@ class DomainActor[O, EVENT](val domain: Domain[O, EVENT], val storage: DomainSto
 
   private def sendRestoreDomain(serializer: DomainSerializer[O], address: Address) = {
     val serialized = serializer.write(domain.getState)
-    sendEvent(write[ControlEvent](RestoreDomain(domain.path, serialized)), Address(System, domain.path))
+    sendEvent(write[ControlEvent](RestoreDomain(path, serialized)), Address(System, path))
   }
 
   private def sendEvent(ev: Event, adr: Address): Unit = {
@@ -77,8 +81,8 @@ class DomainActor[O, EVENT](val domain: Domain[O, EVENT], val storage: DomainSto
 
   def syncDomain(nodeId: Long, syncBack : Boolean): Unit = {
 
-     val event = UnsignedEvent(ControlEvent.writeEvent(ResyncDomain(nodeId, domain.path, domain.recentEvents.mapValues((s: Seq[Long]) => s.max).toMap, syncBack)), 0, nodeId)
-     val adr = Address(System, domain.path)
+     val event = UnsignedEvent(ControlEvent.writeEvent(ResyncDomain(nodeId, path, domain.recentEvents.mapValues((s: Seq[Long]) => s.max).toMap, syncBack)), 0, nodeId)
+     val adr = Address(System, path)
 
      this.sendEvent(event, adr)
   }

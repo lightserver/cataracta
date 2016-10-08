@@ -4,8 +4,8 @@ import pl.setblack.lsa.secureDomain.SecurityEvent
 
 
 
-abstract class PrivateDomain[O](domainState: O, path: Seq[String])
-  extends Domain[O, SecurityEvent](domainState, path) {
+abstract class PrivateDomain[O](domainState: O)
+  extends Domain[O, SecurityEvent](domainState) {
   override def eventsToResend(clientId: Long, recentEvents: Map[Long, Long]): Seq[Event] = {
     Seq()
   }

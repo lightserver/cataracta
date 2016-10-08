@@ -51,8 +51,8 @@ class Node(val id: Future[Long])(
   def initSecurityDomain() = {
     val securityDomain = new SecurityDomain("nic", nodeRef)
     val privateSecurityDomain = new PrivateSecurityDomain("nic", nodeRef)
-    registerDomain(securityDomain.path, securityDomain)
-    registerDomain(privateSecurityDomain.path, privateSecurityDomain)
+    registerDomain(SecurityDomain.securityDomainPath, securityDomain)
+    registerDomain(PrivateSecurityDomain.privateSecurityDomainPath, privateSecurityDomain)
   }
 
   //Jarek:domains  should load themselves
@@ -67,7 +67,7 @@ class Node(val id: Future[Long])(
   }
 
   def registerDomain[O, EVENT](path: Seq[String], domain: Domain[O, EVENT]) = {
-    val actor = new DomainActor(domain, new DomainStorage(path, realityConnection.storage), nodeRef)
+    val actor = new DomainActor(domain, new DomainStorage(path, realityConnection.storage), nodeRef, path)
     val domainRef: BadActorRef[EventWrapper] = realityConnection.concurrency.createSimpleActor(actor)
     domainsManager = domainsManager.withDomain(path, domainRef)
 
