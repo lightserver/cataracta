@@ -9,7 +9,7 @@ class TextsDomain extends Domain[ArrayBuffer[String], String](
    override def processDomain( stateObject: ArrayBuffer[String], event : String, context :EventContext) = {
        stateObject += event
 
-      DefaultResponse
+      new DefaultResponse
    }
 
 }

@@ -10,6 +10,7 @@ class DomainRef[EVENT](
 
                       ) (implicit val converter: EventConverter[EVENT]) {
 
+  //TODO: i should end with Unit methods
   def send(e: EVENT, endpoint: Endpoint = All): Unit = {
     nodeRef.send(NodeSendEventContent(converter.writeEvent(e), Address(endpoint, path)))
   }

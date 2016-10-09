@@ -7,7 +7,7 @@ import pl.setblack.lsa.events.{EventConverter, DefaultResponse, Response, EventC
 trait SecurityDomainProcessor {
   def nodeRef: BadActorRef[NodeEvent]
 
- protected def processDomain(state: String, event: SecurityEvent, eventContext: EventContext): Response = {
+ protected def processDomain(state: String, event: SecurityEvent, eventContext: EventContext): Response[String] = {
     event match {
       case register: RegisterSignedCertificate => {
         println("registration of signed cert not implemented yet")
@@ -16,6 +16,6 @@ trait SecurityDomainProcessor {
         nodeRef.send(SecRegisterSigner(signer))
       }
     }
-    DefaultResponse
+    new DefaultResponse[String]
   }
 }

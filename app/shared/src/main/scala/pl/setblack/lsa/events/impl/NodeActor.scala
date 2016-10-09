@@ -8,7 +8,7 @@ import slogging.{LazyLogging, Logger}
 
 class NodeActor(val node: Node) extends LazyLogging with BadActor[NodeEvent] {
   override def receive(e: NodeEvent): Unit = {
-    logger.debug(s"processeing event in NodeActor ${e}")
+    logger.debug(s"processeing event in NodeActor ${e.getClass}")
     e match {
       case content: NodeSendEventContent =>
         node.sendEvent(content.eventContent, content.adr)

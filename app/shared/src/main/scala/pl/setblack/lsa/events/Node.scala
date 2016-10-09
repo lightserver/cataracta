@@ -212,6 +212,10 @@ class Node(val id: Future[Long])(
     domainsManager.filterDomains(path).foreach(d => d.send(RegisterListener[O, X](listener)))
   }
 
+  def registerDomainListener[O, X](listener: DomainListener[O, X], ref: DomainRef[_]): Unit = {
+    this.registerDomainListener(listener, ref.path)
+  }
+
   private def resyncDomain(sync: ResyncDomain, connectionData: ConnectionData): Unit = {
     domainsManager.filterDomains(sync.domain).map(
       domainRef => {

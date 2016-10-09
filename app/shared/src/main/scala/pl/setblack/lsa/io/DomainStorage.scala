@@ -1,43 +1,49 @@
 package pl.setblack.lsa.io
 
-import pl.setblack.lsa.events.{NullContext, Domain, Event}
-
+import pl.setblack.lsa.events.{Domain, Event, NullContext}
+import slogging.StrictLogging
 import upickle.default._
 
-class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
-  var saveCounter :Int= 0
+class DomainStorage(val path: Seq[String], val sysStorage: Storage) extends StrictLogging {
+  var saveCounter: Int = 0
 
-  def saveEvent(event: Event):Unit = {
-    val storePath = getStorePath( nextCounter )
+  def saveEvent(event: Event): Unit = {
+    val storePath = getStorePath(nextCounter)
 
-    sysStorage.save( write[Event]( event) , storePath)
+    sysStorage.save(write[Event](event), storePath)
 
-    sysStorage.save( saveCounter.toString, getSummaryPath())
+    sysStorage.save(saveCounter.toString, getSummaryPath())
   }
 
-  def saveDomain( domain : Domain[_,_]) = {
+  def saveDomain(domain: Domain[_, _]) = {
 
 
   }
 
- private def loadEvent(number: Integer ) : Option[Event] = {
-   val storePath = getStorePath( number )
-   sysStorage.load(storePath) match {
-     case Some(s)  => {
+  private def loadEvent(number: Integer): Option[Event] = {
+    val storePath = getStorePath(number)
+    sysStorage.load(storePath) match {
+      case Some(s) => {
+        try {
+          Some(read[Event](s))
+        } catch {
+          case e: Exception => {
+            logger.error(s"error parsing JSON: \n${s}", e)
+              throw new RuntimeException(e)
+          }
+        }
+      }
+      case _ => None
+    }
+  }
 
-       Some(read[Event](s))
-     }
-     case   _ => None
-   }
- }
-
-  def loadEvents(domain: Domain[_,_]):Long = {
+  def loadEvents(domain: Domain[_, _]): Long = {
     val ctx = new NullContext
-    sysStorage.load(getSummaryPath()).map (
+    sysStorage.load(getSummaryPath()).map(
       storedNumber => {
         val maxEvent = storedNumber.toInt
-        for(  i  <- 0 to maxEvent ){
-            loadEvent(i).foreach( e => domain.receiveEvent(e,ctx))
+        for (i <- 0 to maxEvent) {
+          loadEvent(i).foreach(e => domain.receiveEvent(e, ctx))
         }
         saveCounter = maxEvent
         saveCounter
@@ -45,8 +51,8 @@ class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
     ).getOrElse(0).toLong
   }
 
-  private def getStorePath(cnt :Integer) = {
-      Seq("events") ++ path :+ cnt.toString
+  private def getStorePath(cnt: Integer) = {
+    Seq("events") ++ path :+ cnt.toString
   }
 
   private def getSummaryPath() = {
@@ -54,7 +60,7 @@ class DomainStorage(val path: Seq[String], val sysStorage : Storage) {
   }
 
   private def nextCounter = {
-    saveCounter = saveCounter +1
+    saveCounter = saveCounter + 1
     saveCounter
   }
 }

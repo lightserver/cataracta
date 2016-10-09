@@ -1,8 +1,8 @@
 package pl.setblack.lsa.events
 
-import org.scalatest.FunSuite
+import org.scalatest.{FunSuite, Matchers}
 
-class ControlEvent$Test  extends org.scalatest.FunSpec {
+class ControlEvent$Test  extends org.scalatest.FunSpec with Matchers {
 
 
 
@@ -10,8 +10,8 @@ class ControlEvent$Test  extends org.scalatest.FunSpec {
     val case1  = ResyncDomain(1, Seq("unpublished"), Map(), true)
     //val case2  = RegisteredClient(1,222)
     it("should write event") {
-      val resullt = ControlEvent.writeEvent(case1)
-      println(resullt)
+      val result = ControlEvent.writeEvent(case1)
+      result should include ("\"clientId\":\"1\"")
     }
 
 

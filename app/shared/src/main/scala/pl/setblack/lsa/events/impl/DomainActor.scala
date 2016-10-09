@@ -16,7 +16,7 @@ class DomainActor[O, EVENT](
 
 
   override def receive(e: EventWrapper): Unit = {
-    logger.debug(s"received event ${e} ")
+    logger.debug(s"domain ${path} received event ${e.getClass} ")
     e match {
       case LoadDomainCommand => storage.loadEvents(domain) //@todo inc events counter
       case ev: SendEventCommand => {
