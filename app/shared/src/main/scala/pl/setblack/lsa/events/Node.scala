@@ -98,7 +98,9 @@ class Node(val id: Future[Long])(
   def sendEvent(content: String, adr: Address): Unit = {
     this.id.onSuccess {
       case nodeid: Long => {
-        val event = new UnsignedEvent(content, getNextEventId(), nodeid)
+        val evId = getNextEventId()
+        logger.debug(s"created id ${evId} for ${content}")
+        val event = new UnsignedEvent(content, evId, nodeid)
         this.sendEvent(event, adr)
       }
     }

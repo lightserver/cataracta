@@ -35,8 +35,6 @@ abstract class Domain[O, EVENT](private var domainState: O)
 
   def receiveEvent(event: Event, eventContext: EventContext): Response[O] = {
     if (!seenEvent(event)) {
-
-
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
       val convertedEvent = eventConverter.readEvent(event.content)
