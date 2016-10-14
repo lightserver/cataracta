@@ -27,7 +27,7 @@ class NoConcurrencySystem extends ConcurrencySystem with LazyLogging{
   class JustDoItRef[E](val actor : BadActor[E]) extends BadActorRef[E] {
     override def send(event: E): Unit = {
       logger.debug(s"received event  ${event}")
-        actor.receive(event)
+        synchronized(actor.receive(event))
     }
   }
 }

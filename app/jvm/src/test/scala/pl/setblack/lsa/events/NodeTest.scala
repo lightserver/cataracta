@@ -19,13 +19,6 @@ class NodeTest extends org.scalatest.FunSpec {
  }, new FakeResources)
   describe("Node") {
 
-    describe("when created") {
-      it("should produce NoSuchElementException when head is invoked") {
-        intercept[NoSuchElementException] {
-          Set.empty.head
-        }
-      }
-    }
 
     describe("Domains") {
       val testee = new Node(1)

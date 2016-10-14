@@ -1,6 +1,5 @@
 package pl.setblack.lsa.events
 
-
 import pl.setblack.lsa.concurrency.{BadActorRef, ConcurrencySystem}
 import pl.setblack.lsa.events.domains.DomainsManager
 import pl.setblack.lsa.events.impl.{EventWrapper, _}
@@ -11,7 +10,6 @@ import pl.setblack.lsa.secureDomain._
 import pl.setblack.lsa.security.{RSAKeyPairExported, SecurityProvider, SigningId}
 import slogging.StrictLogging
 import upickle.default._
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 
