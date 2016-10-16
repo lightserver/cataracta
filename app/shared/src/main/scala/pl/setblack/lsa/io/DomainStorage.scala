@@ -42,7 +42,7 @@ class DomainStorage(val path: Seq[String], val sysStorage: Storage) extends Stri
     sysStorage.load(getSummaryPath()).map(
       storedNumber => {
         val maxEvent = storedNumber.toInt
-        for (i <- 0 to maxEvent) {
+        for (i <- 1 to maxEvent) {
           loadEvent(i).foreach(e => domain.receiveEvent(e, ctx))
         }
         saveCounter = maxEvent

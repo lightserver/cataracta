@@ -41,7 +41,34 @@ class NodePersistenceTest extends FunSpec with Matchers {
       TestKit.awaitCond(buffer.size >= 1, 10 seconds)
       buffer.mkString should be("nicniema")
     }
+
+    it("should assing correct eventIds while loading events ") {
+      val storage = presaveEvents(5)
+      storage.blockAfter(3)
+      val node = new Node(1)(createReality(storage))
+      val buffer = new ArrayBuffer[String]
+      val domainRef = node.registerDomain(Seq("default"), new TextsDomain(buffer))
+      domainRef.restoreDomain()
+      domainRef.send("divadlo")
+      TestKit.awaitCond(buffer.size >= 2, 10 seconds)
+      storage.unlock()
+      TestKit.awaitCond(buffer.size >= 5, 10 seconds)
+      //send event
+      buffer.mkString should endWith("divadlo")
+    }
   }
+
+  private def presaveEvents(cnt: Int): HashStorage = {
+    val storage = new HashStorage
+    var eventNumber: Int = 0
+    for (eventNumber <- 1 to cnt) {
+      val event = UnsignedEvent(s"Event${eventNumber}", eventNumber, 1)
+      storage.save(Event.toExportedString(event), Seq("events", "default", eventNumber.toString))
+      storage.save(cnt.toString, Seq("events", "default", "summary"))
+    }
+    storage
+  }
+
 
   private def createReality(storage: HashStorage): Reality = {
     val noconcurrency = new NoConcurrencySystem
