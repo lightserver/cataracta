@@ -23,6 +23,7 @@ class NodeActor(val node: Node) extends LazyLogging with BadActor[NodeEvent] {
         node.generateKeyPair(gen.author, gen.certifiedBy, gen.privileges, gen.adr)
       case restore : RestoreDomainNodeEvent =>
         node.restoreDomain(restore.path)
+      case deblock : FoundMaxEventForDomain => node.deblock(deblock.maxEvenID)
     }
   }
 }
@@ -44,3 +45,5 @@ case class SecGenerateKeyPair(
                                adr: Address) extends NodeEvent
 
 case class RestoreDomainNodeEvent( path: Seq[String]) extends NodeEvent
+
+case class FoundMaxEventForDomain(maxEvenID : Long, path: Seq[String]) extends NodeEvent

@@ -14,11 +14,16 @@ class DomainActor[O, EVENT](
   extends BadActor[EventWrapper] with LazyLogging {
 
 
+  private def loadEvents() = {
+    val maxId = storage.loadEvents(domain)
+     nodeRef.send(FoundMaxEventForDomain(maxId, path))
+  }
+
 
   override def receive(e: EventWrapper): Unit = {
     logger.debug(s"domain ${path} received event ${e.getClass} ")
     e match {
-      case LoadDomainCommand => storage.loadEvents(domain) //@todo inc events counter
+      case LoadDomainCommand =>  loadEvents()
       case ev: SendEventCommand => {
 
         val result = domain.receiveEvent(ev.event, ev.ctx)

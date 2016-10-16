@@ -1,15 +1,16 @@
 package pl.setblack.lsa.events
 
-import pl.setblack.lsa.concurrency.{BadActorRef, ConcurrencySystem}
+import pl.setblack.lsa.concurrency.BadActorRef
 import pl.setblack.lsa.events.domains.DomainsManager
 import pl.setblack.lsa.events.impl.{EventWrapper, _}
-import pl.setblack.lsa.io.{DomainStorage, Storage}
+import pl.setblack.lsa.io.DomainStorage
 import pl.setblack.lsa.os.Reality
 import pl.setblack.lsa.secureDomain.SecurityEvent.SecurityEventConverter
 import pl.setblack.lsa.secureDomain._
 import pl.setblack.lsa.security.{RSAKeyPairExported, SecurityProvider, SigningId}
 import slogging.StrictLogging
 import upickle.default._
+
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 
@@ -30,7 +31,7 @@ class Node(val id: Future[Long])(
   //node
   private var domainsManager = new DomainsManager
 
-  private var nextEventId: Long = 0
+  private val eventSequencer = new EventSequencer
 
   //dispatcher
   private val connections = new scala.collection.mutable.HashMap[Long, NodeConnection]()
@@ -96,10 +97,13 @@ class Node(val id: Future[Long])(
   def sendEvent(content: String, adr: Address): Unit = {
     this.id.onSuccess {
       case nodeid: Long => {
-        val evId = getNextEventId()
-        logger.debug(s"created id ${evId} for ${content}")
-        val event = new UnsignedEvent(content, evId, nodeid)
-        this.sendEvent(event, adr)
+        this.eventSequencer.nextEventId.onSuccess {
+          case evId: Long => {
+            logger.debug(s"created id ${evId} for ${content}")
+            val event = new UnsignedEvent(content, evId, nodeid)
+            this.sendEvent(event, adr)
+          }
+        }
       }
     }
   }
@@ -112,22 +116,26 @@ class Node(val id: Future[Long])(
     this.id.onSuccess {
       case nodeid: Long => {
         logger.debug(s"send sign event ${content} with [${security}]")
-        val eventId = getNextEventId()
-        val toSignMessage = makeSignedString(content, eventId, nodeid, adr)
-        (for {
-          signature <- {
-            logger.debug(s"signing msg ${toSignMessage}")
-            security.flatMap(_.signAs(author, toSignMessage))
-          }
-        } yield {
-          val event = new SignedEvent(content, eventId, nodeid, signature)
-          this.sendEvent(event, adr)
-        }) onFailure {
-          case e => {
-            logger.error("unable to sign event", e)
-            e.printStackTrace()
+        this.eventSequencer.nextEventId.onSuccess {
+          case eventId: Long => {
+            val toSignMessage = makeSignedString(content, eventId, nodeid, adr)
+            (for {
+              signature <- {
+                logger.debug(s"signing msg ${toSignMessage}")
+                security.flatMap(_.signAs(author, toSignMessage))
+              }
+            } yield {
+              val event = new SignedEvent(content, eventId, nodeid, signature)
+              this.sendEvent(event, adr)
+            }) onFailure {
+              case e => {
+                logger.error("unable to sign event", e)
+                e.printStackTrace()
+              }
+            }
           }
         }
+
 
       }
     }
@@ -234,13 +242,20 @@ class Node(val id: Future[Long])(
   }
 
   private[events] def restoreDomain(path: Seq[String]): Unit = {
+    this.eventSequencer.block()
     this.id onSuccess { case nodeId: Long =>
       domainsManager.filterDomains(path).foreach(domainRef => {
-          domainRef.send(LoadDomainCommand)
-          domainRef.send(SyncDomainCommand(nodeId, true))
+
+        domainRef.send(LoadDomainCommand)
+        domainRef.send(SyncDomainCommand(nodeId, true))
       })
     }
   }
+
+  private[events] def deblock(maxEvenID: Long): Unit = {
+    this.eventSequencer.deblockAt(maxEvenID)
+  }
+
 
   def listenDomains(listen: ListenDomains, sender: Long) = {
     this.connections.get(sender).foreach(nodeConnection => nodeConnection.setListeningTo(listen.domains))
@@ -258,7 +273,9 @@ class Node(val id: Future[Long])(
             case sync: ResyncDomain => resyncDomain(sync, ctx.connectionData)
             case serialized: RestoreDomain => restoreDomain(serialized)
             case listen: ListenDomains => listenDomains(listen, ev.sender)
-            case Ping => { logger.debug("got ping")}
+            case Ping => {
+              logger.debug("got ping")
+            }
           }
         }
     }
@@ -342,12 +359,6 @@ class Node(val id: Future[Long])(
     } else {
       domainsManager.receiveLocalDomainMessage(msg, ctx)
     }
-  }
-
-
-  def getNextEventId(): Long = {
-    this.nextEventId += 1
-    this.nextEventId
   }
 
 

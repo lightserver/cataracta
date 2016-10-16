@@ -5,6 +5,9 @@ import pl.setblack.lsa.events._
 /* Event below were devoted to Lord of Change. */
 sealed trait EventWrapper
 
+
+
+
 case object LoadDomainCommand extends EventWrapper
 
 case class SendEventCommand(
