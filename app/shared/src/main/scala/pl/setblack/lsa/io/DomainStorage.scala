@@ -1,6 +1,6 @@
 package pl.setblack.lsa.io
 
-import pl.setblack.lsa.events.{Domain, Event, NullContext}
+import pl.setblack.lsa.events.{Domain, Event, EventContext, NullContext}
 import slogging.StrictLogging
 import upickle.default._
 
@@ -37,8 +37,8 @@ class DomainStorage(val path: Seq[String], val sysStorage: Storage) extends Stri
     }
   }
 
-  def loadEvents(domain: Domain[_, _]): Long = {
-    val ctx = new NullContext
+  def loadEvents(domain: Domain[_, _], ctx : EventContext): Long = {
+
     sysStorage.load(getSummaryPath()).map(
       storedNumber => {
         val maxEvent = storedNumber.toInt

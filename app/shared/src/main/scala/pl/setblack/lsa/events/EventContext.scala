@@ -1,5 +1,7 @@
 package pl.setblack.lsa.events
 
+import pl.setblack.lsa.concurrency.BadActorRef
+import pl.setblack.lsa.events.impl.{NodeEvent, RegisterDomain}
 import pl.setblack.lsa.security.{CertificateInfo, SigningId}
 
 abstract class EventContext {
@@ -46,7 +48,7 @@ class NodeEventContext(
   }
 }
 
-class NullContext extends EventContext {
+class NullContext(val nodeRef: BadActorRef[NodeEvent]) extends EventContext {
 
   def sender = -1
 
@@ -63,5 +65,11 @@ class NullContext extends EventContext {
   override def isSecure(): Boolean = true
 
   override def createDomain[O, EVENT](path: Seq[String], domain: Domain[O, EVENT])
-    : Option[DomainRef[EVENT]] = None
+    : Option[DomainRef[EVENT]] = {
+     nodeRef.send(new RegisterDomain[O,EVENT](path, domain))
+    Some(new DomainRef[EVENT](
+      path,
+      nodeRef
+    )(domain.eventConverter))
+  }
 }

@@ -1,7 +1,7 @@
 package pl.setblack.lsa.events.impl
 
 import pl.setblack.lsa.concurrency.BadActor
-import pl.setblack.lsa.events.{Address, Event, Node}
+import pl.setblack.lsa.events.{Address, Domain, Event, Node}
 import pl.setblack.lsa.secureDomain.RegisterSigner
 import pl.setblack.lsa.security.SigningId
 import slogging.{LazyLogging, Logger}
@@ -24,6 +24,8 @@ class NodeActor(val node: Node) extends LazyLogging with BadActor[NodeEvent] {
       case restore : RestoreDomainNodeEvent =>
         node.restoreDomain(restore.path)
       case deblock : FoundMaxEventForDomain => node.deblock(deblock.maxEvenID)
+
+      case register : RegisterDomain[_,_] => node.registerDomain(register.path, register.domain)
     }
   }
 }
@@ -43,6 +45,8 @@ case class SecGenerateKeyPair(
                                certifiedBy: SigningId,
                                privileges: Set[String],
                                adr: Address) extends NodeEvent
+
+case class RegisterDomain[O, EVENT](path :Seq[String], domain: Domain[O, EVENT]) extends NodeEvent
 
 case class RestoreDomainNodeEvent( path: Seq[String]) extends NodeEvent
 

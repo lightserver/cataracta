@@ -42,7 +42,7 @@ class NodePersistenceTest extends FunSpec with Matchers {
       buffer.mkString should be("nicniema")
     }
 
-    it("should assing correct eventIds while loading events ") {
+    it("should assign correct eventId while loading events ") {
       val storage = presaveEvents(5)
       storage.blockAfter(3)
       val node = new Node(1)(createReality(storage))
@@ -55,6 +55,23 @@ class NodePersistenceTest extends FunSpec with Matchers {
       TestKit.awaitCond(buffer.size >= 5, 10 seconds)
       //send event
       buffer.mkString should endWith("divadlo")
+    }
+
+    it("should assign two subsewuent correct eventIds while loading events ") {
+      val storage = presaveEvents(5)
+      storage.blockAfter(3)
+      val node = new Node(1)(createReality(storage))
+      val buffer = new ArrayBuffer[String]
+      val domainRef = node.registerDomain(Seq("default"), new TextsDomain(buffer))
+      domainRef.restoreDomain()
+      domainRef.send("divadlo")
+      domainRef.send("je")
+      TestKit.awaitCond(buffer.size >= 2, 10 seconds)
+      storage.unlock()
+      TestKit.awaitCond(buffer.size >= 6, 10 seconds)
+      //send event
+      buffer.mkString should include("divadlo")
+      buffer.mkString should include("je")
     }
   }
 

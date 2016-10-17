@@ -11,8 +11,8 @@ abstract class Domain[O, EVENT](private var domainState: O)
 
   protected def processDomain(state: O, event: EVENT, eventContext: EventContext): Response[O]
 
-  private def processDomain(state: O, event: Event, eventContext: EventContext): Response[O] = {
-    val response = processDomain(state, eventConverter.readEvent(event.content), eventContext)
+  private def processDomainInternal(state: O, event: EVENT, eventContext: EventContext): Response[O] = {
+    val response = processDomain(state, event, eventContext)
     response.newState.foreach(setState(_))
     response
   }
@@ -38,7 +38,7 @@ abstract class Domain[O, EVENT](private var domainState: O)
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
       val convertedEvent = eventConverter.readEvent(event.content)
-      val result = processDomain(domainState, convertedEvent, eventContext)
+      val result = processDomainInternal(domainState, convertedEvent, eventContext)
       if (result.persist) {
         eventsHistory += event
       }

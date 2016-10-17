@@ -15,13 +15,13 @@ class DomainActor[O, EVENT](
 
 
   private def loadEvents() = {
-    val maxId = storage.loadEvents(domain)
+    val ctx = new NullContext(nodeRef)
+    val maxId = storage.loadEvents(domain, ctx)
      nodeRef.send(FoundMaxEventForDomain(maxId, path))
   }
 
 
   override def receive(e: EventWrapper): Unit = {
-    logger.debug(s"domain ${path} received event ${e.getClass} ")
     e match {
       case LoadDomainCommand =>  loadEvents()
       case ev: SendEventCommand => {

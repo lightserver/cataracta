@@ -99,7 +99,6 @@ class Node(val id: Future[Long])(
       case nodeid: Long => {
         this.eventSequencer.nextEventId.onSuccess {
           case evId: Long => {
-            logger.debug(s"created id ${evId} for ${content}")
             val event = new UnsignedEvent(content, evId, nodeid)
             this.sendEvent(event, adr)
           }
