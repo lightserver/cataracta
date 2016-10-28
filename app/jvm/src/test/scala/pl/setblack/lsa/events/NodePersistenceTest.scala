@@ -52,7 +52,7 @@ class NodePersistenceTest extends FunSpec with Matchers {
       domainRef.send("divadlo")
       TestKit.awaitCond(buffer.size >= 2, 10 seconds)
       storage.unlock()
-      TestKit.awaitCond(buffer.size >= 5, 10 seconds)
+      TestKit.awaitCond(buffer.size >= 6, 10 seconds)
       //send event
       buffer.mkString should endWith("divadlo")
     }
