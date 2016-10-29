@@ -3,6 +3,7 @@ package pl.setblack.lsa.browser
 import pl.setblack.lsa.boot.GenericSystem
 import pl.setblack.lsa.concurrency.NoConcurrencySystem
 import pl.setblack.lsa.events.Node
+import pl.setblack.lsa.io.DataStorage.{DataInputStream, DataOutputStream, DataStorage}
 import pl.setblack.lsa.io.Storage
 import pl.setblack.lsa.os.SimpleReality
 import pl.setblack.lsa.resources.JSResources
@@ -22,11 +23,23 @@ class JSSystem (val clientId: Future[Long],rootCertificate : Option[SignedCertif
     node
   }
 
-  private def createStorage(): Storage = {
-    class NullStorage extends Storage {
-      override def save(value: String, path: Seq[String]): Unit = {}
+  private def createStorage(): DataStorage = {
+    class NullStorage extends DataStorage {
+      override def openDataReader(path: Seq[String]): Future[Option[DataInputStream]] = {
+        Future { None }
+      }
 
-      override def load(path: Seq[String]): Option[String] = None
+      override def openDataWriter(path: Seq[String]): Future[DataOutputStream] = {
+        Future {
+          new NullWriter
+        }
+      }
+    }
+
+    class NullWriter extends DataOutputStream {
+      override def writeNextValue(value: String): Unit = {}
+
+      override def close(): Unit = {}
     }
     return new NullStorage
   }

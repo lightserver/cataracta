@@ -1,32 +1,40 @@
 package pl.setblack.lsa.events
 
-import java.util.UUID
 import java.util.concurrent.locks.{Lock, ReentrantLock}
 
-import pl.setblack.lsa.io.Storage
+import pl.setblack.lsa.io.DataStorage._
 
-class HashStorage extends Storage {
-  var storedValues = Map[Seq[String], String]()
+import scala.concurrent.{ExecutionContext, Future}
+
+class HashStorage(implicit val executionContext: ExecutionContext) extends DataStorage {
+  @volatile var storedValues = Map[Seq[String], List[String]]()
   var lockAfter: Option[Int] = None
   private val lock = new ReentrantLock()
 
-  override def save(value: String, path: Seq[String]): Unit = {
-    maybeLock{() => storedValues = storedValues + (path -> value)}
+  override def openDataReader(path: Seq[String]): Future[Option[DataInputStream]] = {
+    Future {
+      storedValues.get(path).map(l => new ListReader(l))
+    }
   }
 
-  override def load(path: Seq[String]): Option[String] = {
-    maybeLock{() => {
-      var  result = storedValues.get(path)
-
-      result
-    }}
+  override def openDataWriter(path: Seq[String]): Future[DataOutputStream] = {
+    Future {
+      new Writer(path)
+    }
   }
 
-  private def maybeLock[T](body: () => T):T= {
-    val myLock = synchronized{lockAfter = lockAfter.map(v => v - 1); lockAfter}.filter( _ < 0)
-    myLock.foreach{_ =>lock.lock()}
+  def save(path: Seq[String], value: String): Unit = {
+    storedValues = storedValues + (path -> storedValues.get(path).orElse(Some(List[String]())).map(list => list :+ value).get)
+  }
+
+  private def maybeLock[T](body: () => T): T = {
+    val myLock = synchronized {
+      lockAfter = lockAfter.map(v => v - 1);
+      lockAfter
+    }.filter(_ < 0)
+    myLock.foreach { _ => lock.lock() }
     val result = body()
-    myLock.foreach{_ =>lock.unlock()}
+    myLock.foreach { _ => lock.unlock() }
     result
   }
 
@@ -36,10 +44,53 @@ class HashStorage extends Storage {
     lock
   }
 
-  def unlock() : Lock = {
+  def unlock(): Lock = {
     synchronized(this.lockAfter = None)
     lock.unlock()
     lock
   }
 
+  class ListReader(val list: List[String]) extends DataInputStream {
+    var iterator = list.iterator
+
+
+    override def readNextValue(): Future[Either[DataStreamState, String]] = {
+      Future {
+        maybeLock { () => if (iterator.hasNext) {
+          Right(iterator.next())
+        } else {
+          Left(NoMoreData)
+        }
+        }
+
+      }
+    }
+
+    override def close(): Unit = {
+
+    }
+  }
+
+  class Writer(val path: Seq[String]) extends DataOutputStream {
+    var values = List[String]()
+
+    override def writeNextValue(evalue: String): Unit = {
+
+      maybeLock { () => {
+        synchronized {
+          values = values :+ evalue
+          storedValues = storedValues + (path -> values)
+        }
+      }
+      }
+
+    }
+
+    override def close(): Unit = {
+      storedValues = storedValues + (path -> values)
+    }
+  }
+
 }
+
+

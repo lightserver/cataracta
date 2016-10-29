@@ -1,12 +1,21 @@
 package pl.setblack.lsa.events
 
-import pl.setblack.lsa.io.Storage
+import pl.setblack.lsa.io.DataStorage.{DataInputStream, DataOutputStream, DataStorage}
 
-class FakeStorage extends Storage{
-  override def save(value: String, path: Seq[String]): Unit = {
+import scala.concurrent.{ExecutionContext, Future}
 
+class FakeStorage(implicit val executionContext: ExecutionContext) extends DataStorage{
+  override def openDataReader(path: Seq[String]): Future[Option[DataInputStream]] = Future { None }
+
+  override def openDataWriter(path: Seq[String]): Future[DataOutputStream] = Future {
+    EmptyOutput
+  }
+}
+
+object EmptyOutput extends DataOutputStream {
+  override def writeNextValue(value: String): Unit = {
+    println (s"writing=${value}")
   }
 
-  override def load(path: Seq[String]): Option[String] =  None
-
+  override def close(): Unit = {}
 }

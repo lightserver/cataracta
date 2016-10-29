@@ -1,68 +1,64 @@
 package pl.setblack.lsa.io
 
-import pl.setblack.lsa.events.{Domain, Event, EventContext, NullContext}
+import pl.setblack.lsa.events.{Domain, Event, EventContext}
+import pl.setblack.lsa.io.DataStorage.{DataInputStream, DataStorage, NoMoreData}
 import slogging.StrictLogging
 import upickle.default._
 
-class DomainStorage(val path: Seq[String], val sysStorage: Storage) extends StrictLogging {
+import scala.concurrent.{ExecutionContext, Future, Promise}
+
+class DomainStorage(val path: Seq[String], val sysStorage: DataStorage)(implicit  val ec: ExecutionContext) extends StrictLogging {
   var saveCounter: Int = 0
 
+
+  val storFuture= sysStorage.openDataWriter(path)
+
+
   def saveEvent(event: Event): Unit = {
-    val storePath = getStorePath(nextCounter)
-
-    sysStorage.save(write[Event](event), storePath)
-
-    sysStorage.save(saveCounter.toString, getSummaryPath())
+    storFuture.onSuccess  { case writer => writer.writeNextValue(write[Event](event))}
   }
 
   def saveDomain(domain: Domain[_, _]) = {
-
-
   }
 
-  private def loadEvent(number: Integer): Option[Event] = {
-    val storePath = getStorePath(number)
-    sysStorage.load(storePath) match {
-      case Some(s) => {
-        try {
-          Some(read[Event](s))
-        } catch {
-          case e: Exception => {
-            logger.error(s"error parsing JSON: \n${s}", e)
-              throw new RuntimeException(e)
-          }
+
+
+  private def processNextEvent(
+                                domain: Domain[_, _],
+                                ctx : EventContext,
+                                inputStorage: DataInputStream,
+                                nextIdPromise: Promise[Long],
+                                maxId :  Long
+                              )   {
+    val nextValFuture = inputStorage.readNextValue()
+    nextValFuture.onSuccess {
+      case Right(value) => {
+        val event = read[Event](value)
+        val newMax = Math.max( maxId, event.id)
+        domain.receiveEvent(read[Event](value),ctx)
+        processNextEvent(domain, ctx, inputStorage, nextIdPromise, newMax)
+      }
+      case Left(error) => {
+        error match  {
+          case NoMoreData => nextIdPromise.success(maxId)
+          case _ => { logger.error(s"load error ${error}")}
         }
       }
-      case _ => None
     }
   }
 
-  def loadEvents(domain: Domain[_, _], ctx : EventContext): Long = {
-
-    sysStorage.load(getSummaryPath()).map(
-      storedNumber => {
-        val maxEvent = storedNumber.toInt
-        for (i <- 1 to maxEvent) {
-          loadEvent(i).foreach(e => domain.receiveEvent(e, ctx))
-        }
-        saveCounter = maxEvent
-        saveCounter
-      }
-    ).getOrElse(0).toLong
+  def loadEvents(domain: Domain[_, _], ctx : EventContext): Future[Long] = {
+    val nextIdPromise = Promise[Long]
+    val reader = sysStorage.openDataReader(path )
+    reader.onSuccess {case file => {
+        file.map( inputStream =>  processNextEvent(domain, ctx, inputStream, nextIdPromise, 0))
+    }}
+    nextIdPromise.future
   }
 
-  private def getStorePath(cnt: Integer) = {
-    Seq("events") ++ path :+ cnt.toString
-  }
 
-  private def getSummaryPath() = {
-    Seq("events") ++ path :+ "summary"
-  }
 
-  private def nextCounter = {
-    saveCounter = saveCounter + 1
-    saveCounter
-  }
+
 }
 
 

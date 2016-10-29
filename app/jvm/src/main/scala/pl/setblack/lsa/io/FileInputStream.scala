@@ -12,12 +12,12 @@ class FileInputStream(val filesIterator : Iterator[Path])(implicit val ectx: Exe
 
   var nextFile = getNextFile()
 
-
   private def readNextValueInternal() : Either[DataStreamState, String]= {
+    synchronized(
     nextFile.map ( input => {
       try {
-
-        Right(input.readUTF())
+        val read = input.readUTF()
+        Right(read)
       } catch {
         case eof: EOFException => {
           input.close()
@@ -26,8 +26,9 @@ class FileInputStream(val filesIterator : Iterator[Path])(implicit val ectx: Exe
         }
         case  io:IOException => Left(DataError(io))
       }
-    }).getOrElse(Left(NoMoreData))
+    }).getOrElse(Left(NoMoreData)))
   }
+
 
   override def readNextValue(): Future[Either[DataStreamState, String]]  = {
     Future {

@@ -6,18 +6,22 @@ import pl.setblack.lsa.io.DomainStorage
 import slogging.LazyLogging
 import upickle.default._
 
+import scala.concurrent.ExecutionContext
+
 class DomainActor[O, EVENT](
                              val domain: Domain[O, EVENT],
                               val storage: DomainStorage,
                              val nodeRef: BadActorRef[NodeEvent],
-                             val path :Seq[String])
+                             val path :Seq[String])(implicit  val executionContext: ExecutionContext)
   extends BadActor[EventWrapper] with LazyLogging {
 
 
   private def loadEvents() = {
     val ctx = new NullContext(nodeRef)
-    val maxId = storage.loadEvents(domain, ctx)
-     nodeRef.send(FoundMaxEventForDomain(maxId, path))
+    val maxIdFuture = storage.loadEvents(domain, ctx)
+     maxIdFuture.onSuccess {
+       case maxId => nodeRef.send(FoundMaxEventForDomain(maxId, path))
+     }
   }
 
 

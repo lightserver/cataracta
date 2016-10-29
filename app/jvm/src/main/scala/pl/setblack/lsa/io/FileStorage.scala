@@ -58,4 +58,12 @@ class FileStorage(val diskPath: String)(implicit val ectx: ExecutionContext) ext
   def createPath(path: Seq[String]) = {
     Paths.get(diskPath, path: _*)
   }
+
+
+  def erase(path: Seq[String]) = {
+    val fsPath = createPath(path)
+    val directoryStream = Files.newDirectoryStream(fsPath)
+    val filesInDirectory = directoryStream.iterator().asScala.toList
+    filesInDirectory.foreach( f=> Files.delete(f))
+  }
 }

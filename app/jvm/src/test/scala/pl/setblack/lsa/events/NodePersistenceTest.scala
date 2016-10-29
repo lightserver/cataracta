@@ -24,16 +24,19 @@ class NodePersistenceTest extends FunSpec with Matchers {
       domainRef.send("nic")
       domainRef.send("nie")
       domainRef.send("moze")
-
-      TestKit.awaitCond(storage.storedValues.filterKeys(key => key.contains("default")).size >= 3, 10 seconds)
-      storage.storedValues.get(Seq("events", "default", "summary")).map(_.toInt) should (be(Some(3)))
+      TestKit.awaitCond({
+        val x = storage.storedValues.get(Seq("default")).getOrElse(List())
+        println (s"mam ${x}")
+        storage.storedValues.get(Seq("default")).getOrElse(List()).size >= 3
+      }, 10 seconds)
+      storage.storedValues.get(Seq( "default")).map(_.size) should (be(Some(3)))
     }
 
     it("should load event") {
       val storage = new HashStorage
       val event = UnsignedEvent("nicniema", 1, 1)
-      storage.save(Event.toExportedString(event), Seq("events", "default", "1"))
-      storage.save(1.toString, Seq("events", "default", "summary"))
+      storage.save(Seq("default"), Event.toExportedString(event))
+     // storage.save(1.toString, Seq("events", "default", "summary"))
       val node = new Node(1)(createReality(storage))
       val buffer = new ArrayBuffer[String]
       val domainRef = node.registerDomain(Seq("default"), new TextsDomain(buffer))
@@ -57,7 +60,7 @@ class NodePersistenceTest extends FunSpec with Matchers {
       buffer.mkString should endWith("divadlo")
     }
 
-    it("should assign two subsewuent correct eventIds while loading events ") {
+    it("should assign two subsequent correct eventIds while loading events ") {
       val storage = presaveEvents(5)
       storage.blockAfter(3)
       val node = new Node(1)(createReality(storage))
@@ -68,7 +71,7 @@ class NodePersistenceTest extends FunSpec with Matchers {
       domainRef.send("je")
       TestKit.awaitCond(buffer.size >= 2, 10 seconds)
       storage.unlock()
-      TestKit.awaitCond(buffer.size >= 6, 10 seconds)
+      TestKit.awaitCond(buffer.size >= 7, 10 seconds)
       //send event
       buffer.mkString should include("divadlo")
       buffer.mkString should include("je")
@@ -80,8 +83,7 @@ class NodePersistenceTest extends FunSpec with Matchers {
     var eventNumber: Int = 0
     for (eventNumber <- 1 to cnt) {
       val event = UnsignedEvent(s"Event${eventNumber}", eventNumber, 1)
-      storage.save(Event.toExportedString(event), Seq("events", "default", eventNumber.toString))
-      storage.save(cnt.toString, Seq("events", "default", "summary"))
+      storage.save(Seq("default"),Event.toExportedString(event))
     }
     storage
   }

@@ -2,7 +2,7 @@ package pl.setblack.lsa.server
 
 import akka.actor.ActorSystem
 import pl.setblack.lsa.concurrency.AkkaConcurrencySystem
-import pl.setblack.lsa.io.FileStore
+import pl.setblack.lsa.io.{FileStorage, FileStore}
 import pl.setblack.lsa.os.{Reality, SimpleReality}
 import pl.setblack.lsa.resources.JVMResources
 import pl.setblack.lsa.security.SecurityProvider
@@ -21,9 +21,9 @@ object JVMRealityConnection {
   }
 
 
-  private def createFileStorage(system: ActorSystem) = {
+  private def createFileStorage(system: ActorSystem) (implicit  executionContext: ExecutionContext)= {
     val fileStorePath = system.settings.config.getString("app.file.filesDir")
-    new FileStore(fileStorePath)
+    new FileStorage(fileStorePath)
   }
 
   private def createSecurityProvider( baseSecurityProvider  : Future[SecurityProvider]) : Future[SecurityProvider]  = {

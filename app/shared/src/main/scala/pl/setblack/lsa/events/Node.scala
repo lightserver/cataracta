@@ -95,10 +95,13 @@ class Node(val id: Future[Long])(
     * Dispatch event from this Node to ... other Node (or not).
     */
   def sendEvent(content: String, adr: Address): Unit = {
+
     this.id.onSuccess {
       case nodeid: Long => {
+        println(s"want to send event ${content}")
         this.eventSequencer.nextEventId.onSuccess {
           case evId: Long => {
+            println(s"want to send ${evId} event ${content} ")
             val event = new UnsignedEvent(content, evId, nodeid)
             this.sendEvent(event, adr)
           }
