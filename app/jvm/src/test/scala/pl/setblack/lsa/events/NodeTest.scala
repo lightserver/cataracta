@@ -1,5 +1,6 @@
 package pl.setblack.lsa.events
 
+import akka.testkit.TestKit
 import pl.setblack.lsa.concurrency.{FakeSecurity, NoConcurrencySystem}
 import pl.setblack.lsa.os.{Reality, SimpleReality}
 import pl.setblack.lsa.resources.FakeResources
@@ -54,16 +55,17 @@ class NodeTest extends org.scalatest.FunSpec {
 
       it("should send message to Node1") {
         node1.sendEvent("testLocal", node1Addr)
-        wait(node1)
+        TestKit.awaitCond(history.values.size > 0, 10 seconds, noThrow  = true)
         assert( history.values(0) == "testLocal")
       }
       it("should send message to Node1 via All") {
         node1.sendEvent("testLocal", nodeAllAddr)
-        wait(node1)
+        TestKit.awaitCond(history.values.size > 0, 10 seconds, noThrow  = true)
         assert( history.values(0) == "testLocal")
       }
       it("should send message to Node1 via Local") {
         node1.sendEvent("testLocal", nodeLocalAddr)
+        TestKit.awaitCond(history.values.size > 0, 10 seconds, noThrow  = true)
         assert( history.values(0) == "testLocal")
       }
     }
