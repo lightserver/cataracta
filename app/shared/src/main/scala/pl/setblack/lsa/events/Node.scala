@@ -8,7 +8,7 @@ import pl.setblack.lsa.os.Reality
 import pl.setblack.lsa.secureDomain.SecurityEvent.SecurityEventConverter
 import pl.setblack.lsa.secureDomain._
 import pl.setblack.lsa.security.{RSAKeyPairExported, SecurityProvider, SigningId}
-import slogging.StrictLogging
+import slogging.{Logger, LoggerFactory, StrictLogging}
 import upickle.default._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -20,7 +20,6 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class Node(val id: Future[Long])(
   implicit val realityConnection: Reality
 ) extends StrictLogging {
-
 
   type InternalDomainRef = BadActorRef[EventWrapper]
 
@@ -95,13 +94,10 @@ class Node(val id: Future[Long])(
     * Dispatch event from this Node to ... other Node (or not).
     */
   def sendEvent(content: String, adr: Address): Unit = {
-
     this.id.onSuccess {
       case nodeid: Long => {
-        println(s"want to send event ${content}")
         this.eventSequencer.nextEventId.onSuccess {
           case evId: Long => {
-            println(s"want to send ${evId} event ${content} ")
             val event = new UnsignedEvent(content, evId, nodeid)
             this.sendEvent(event, adr)
           }
@@ -343,6 +339,7 @@ class Node(val id: Future[Long])(
 
   }
 
+  /** TODO: make private and change to actor receive */
   def receiveMessage(msg: NodeMessage, connectionData: ConnectionData) = {
     msg.event match {
       case unsigned: UnsignedEvent => {
@@ -354,11 +351,12 @@ class Node(val id: Future[Long])(
     }
   }
 
-
+/** TODO: make private and change to actor receive */
   def receiveMessageLocal(msg: NodeMessage, ctx: EventContext) = {
     if (msg.destination.target == System) {
       processSysMessage(msg.event, ctx)
     } else {
+      logger.debug(s"Received event[${msg.event.id}]")
       domainsManager.receiveLocalDomainMessage(msg, ctx)
     }
   }

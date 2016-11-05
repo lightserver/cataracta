@@ -69,9 +69,9 @@ class NodePersistenceTest extends FunSpec with Matchers {
       domainRef.restoreDomain()
       domainRef.send("divadlo")
       domainRef.send("je")
-      TestKit.awaitCond(buffer.size >= 2, 10 seconds)
+      TestKit.awaitCond(buffer.size >= 2, 10 seconds, noThrow  = true)
       storage.unlock()
-      TestKit.awaitCond(buffer.size >= 7, 10 seconds)
+      TestKit.awaitCond(buffer.size >= 7, 10 seconds, noThrow  = true)
       //send event
       buffer.mkString should include("divadlo")
       buffer.mkString should include("je")

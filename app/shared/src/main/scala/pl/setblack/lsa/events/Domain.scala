@@ -1,7 +1,10 @@
 package pl.setblack.lsa.events
 
+import slogging.{LazyLogging, LoggerFactory}
+
 abstract class Domain[O, EVENT](private var domainState: O)
-                               (implicit val eventConverter: EventConverter[EVENT]) {
+                               (implicit val eventConverter: EventConverter[EVENT])
+  extends LazyLogging {
 
   var recentEvents: scala.collection.mutable.Map[Long, Seq[Long]] = scala.collection.mutable.HashMap[Long, Seq[Long]]()
   var listeners = Seq[DomainListener[O, EVENT]]()
@@ -35,6 +38,7 @@ abstract class Domain[O, EVENT](private var domainState: O)
 
   def receiveEvent(event: Event, eventContext: EventContext): Response[O] = {
     if (!seenEvent(event)) {
+      logger.debug(s"NEW[${event.id}]")
       recentEvents = recentEvents + (event.sender -> (
         recentEvents.getOrElse(event.sender, Seq()) :+ event.id))
       val convertedEvent = eventConverter.readEvent(event.content)
@@ -45,6 +49,7 @@ abstract class Domain[O, EVENT](private var domainState: O)
       listeners.foreach(l => l.onDomainChanged(domainState, Some(convertedEvent)))
       result
     } else {
+      logger.debug(s"SEEN[${event.id}]")
       new PreviouslySeenEvent[O]
     }
   }

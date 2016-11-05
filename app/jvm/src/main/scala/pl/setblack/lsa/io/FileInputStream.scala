@@ -16,7 +16,7 @@ class FileInputStream(val filesIterator : Iterator[Path])(implicit val ectx: Exe
     synchronized(
     nextFile.map ( input => {
       try {
-        val read = input.readUTF()
+        val read = input.readObject().asInstanceOf[String]
         Right(read)
       } catch {
         case eof: EOFException => {

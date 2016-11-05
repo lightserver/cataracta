@@ -11,7 +11,7 @@ class DomainStorage(val path: Seq[String], val sysStorage: DataStorage)(implicit
   var saveCounter: Int = 0
 
 
-  val storFuture= sysStorage.openDataWriter(path)
+  lazy val storFuture=  { sysStorage.openDataWriter(path) }
 
 
   def saveEvent(event: Event): Unit = {
@@ -50,9 +50,10 @@ class DomainStorage(val path: Seq[String], val sysStorage: DataStorage)(implicit
   def loadEvents(domain: Domain[_, _], ctx : EventContext): Future[Long] = {
     val nextIdPromise = Promise[Long]
     val reader = sysStorage.openDataReader(path )
-    reader.onSuccess {case file => {
-        file.map( inputStream =>  processNextEvent(domain, ctx, inputStream, nextIdPromise, 0))
-    }}
+    reader.onSuccess {
+      case Some(file) =>  processNextEvent(domain, ctx, file, nextIdPromise, 0)
+      case None => nextIdPromise.success(0)
+    }
     nextIdPromise.future
   }
 

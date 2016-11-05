@@ -10,28 +10,37 @@ class EventSequencer( implicit val executionContext : ExecutionContext) {
 
 
   def block(): Long = {
-    blocked = blocked + 1
-    println("blocked")
-    lastNumberInSeq
+    synchronized {
+      blocked = blocked + 1
+      println("blocked")
+      lastNumberInSeq
+    }
   }
 
   def deblockAt(minEventId: Long): Long = {
-    lastNumberInSeq = Math.max(lastNumberInSeq, minEventId)
-    blocked = blocked - 1
-    if ( blocked <= 0) {
-      this.eventsPromise.foreach( promise => promise.success(nextId()))
-      this.eventsPromise = Nil
+    synchronized {
+      lastNumberInSeq = Math.max(lastNumberInSeq, minEventId)
+      blocked = blocked - 1
+      if (blocked <= 0) {
+        this.eventsPromise.foreach(promise => promise.success(nextId()))
+        this.eventsPromise = Nil
+      }
+      lastNumberInSeq
     }
-    lastNumberInSeq
   }
 
   def nextEventId: Future[Long] = {
-    if ( blocked > 0 ) {
-      val  promise = Promise[Long]
-      eventsPromise = eventsPromise :+ promise
-      promise.future
-    } else {
-      Future{nextId}
+    synchronized {
+      if (blocked > 0) {
+        val promise = Promise[Long]
+        eventsPromise = eventsPromise :+ promise
+        promise.future
+      } else {
+        val nextGivenID = nextId()
+        Future {
+          nextGivenID
+        }
+      }
     }
   }
 

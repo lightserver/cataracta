@@ -42,5 +42,3 @@ Robert C. Martin
  - yes, I need help,
  - very naive event routing system,
  - performance is not a goal for first version,
-
-

@@ -3,7 +3,7 @@ package pl.setblack.lsa.events.impl
 import pl.setblack.lsa.concurrency.{BadActor, BadActorRef}
 import pl.setblack.lsa.events._
 import pl.setblack.lsa.io.DomainStorage
-import slogging.LazyLogging
+import slogging.{LazyLogging, LoggerFactory}
 import upickle.default._
 
 import scala.concurrent.ExecutionContext
@@ -14,6 +14,7 @@ class DomainActor[O, EVENT](
                              val nodeRef: BadActorRef[NodeEvent],
                              val path :Seq[String])(implicit  val executionContext: ExecutionContext)
   extends BadActor[EventWrapper] with LazyLogging {
+
 
 
   private def loadEvents() = {
