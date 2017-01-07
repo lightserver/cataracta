@@ -9,41 +9,43 @@ scalaJSStage in Global := FastOptStage
 
 skip in packageJSDependencies := false
 
-scalaVersion := "2.11.8"
+
+val libName = "cataracta"
+
+scalaVersion in ThisBuild := "2.12.1"
+organization in ThisBuild := "pl.setblack.lsa"
+name in ThisBuild := libName
+version in ThisBuild := "0.98.1"
 
 val app = crossProject.settings(
-   isSnapshot := true,
-
-   name := "cataracta",
-   organization := "pl.setblack.lsa",
-   version := "0.98",
-   scalaVersion := "2.11.8",
+  isSnapshot := true,
+  name := libName,
   unmanagedSourceDirectories in Compile +=
-    baseDirectory.value  / "shared" / "main" / "scala",
+    baseDirectory.value / "shared" / "main" / "scala",
 
   libraryDependencies ++= Seq(
-    "com.lihaoyi" %%% "upickle" % "0.3.8",
-    "pl.setblack" %%% "cryptotpyrc" % "0.4",
-     "biz.enef" %%% "slogging" % "0.4.0"
-  ),
-  testFrameworks += new TestFramework("utest.runner.Framework")
+    "com.lihaoyi" %%% "upickle" % "0.4.4",
+    "pl.setblack" %%% "cryptotpyrc" % "0.4.1",
+    "biz.enef" %%% "slogging" % "0.5.2"
+  )
+  //,mood.play(compile in Compile, mood.ok, mood.error)
 
 ).jsSettings(
   libraryDependencies ++= Seq(
     "org.scala-js" %%% "scalajs-dom" % "0.9.0"
   ),
 
-  skip in packageJSDependencies := false ,
+  skip in packageJSDependencies := false,
   persistLauncher in Compile := true
 ).jvmSettings(
-  scalacOptions :=Seq("-Yopt:l:classpath"),
+
   libraryDependencies ++= Seq(
-    "com.typesafe.akka" %% "akka-actor" % "2.4.6",
-    "com.typesafe.akka" %% "akka-remote" % "2.4.6",
-    "org.scalaz" %% "scalaz-core" % "7.1.2",
-    "com.typesafe.akka" %% "akka-http-experimental" % "2.4.6",
+    "com.typesafe.akka" %% "akka-actor" % "2.4.14",
+    "com.typesafe.akka" %% "akka-remote" % "2.4.14",
+    "org.scalaz" %% "scalaz-core" % "7.2.8",
+    "com.typesafe.akka" %% "akka-http" % "10.0.0",
     "org.scalatest" %% "scalatest" % "3.0.0" % "test",
-    "com.typesafe.akka" %% "akka-testkit" % "2.4.6" % "test"
+    "com.typesafe.akka" %% "akka-testkit" % "2.4.14" % "test"
 
   )
 )
@@ -53,6 +55,8 @@ lazy val appJS = app.js.settings(
 )
 
 lazy val appJVM = app.jvm.settings(
+
+
 
   resourceDirectory in Compile <<= baseDirectory(_ / "../shared/src/main/resources")
 

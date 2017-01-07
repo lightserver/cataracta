@@ -6,7 +6,6 @@ import scala.concurrent.ExecutionContext
 
 class JVMResourcesTest extends AsyncFunSpec with Matchers{
 
-  import ExecutionContext.Implicits.global
 
   describe("jvmresource") {
     val jvmres = new JVMResources
