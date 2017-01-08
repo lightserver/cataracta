@@ -27,6 +27,7 @@ class Webservice(serverNode: ServerSystem)(implicit fm: Materializer, system: Ac
         // Scala-JS puts them in the root of the resource directory per default,
         // so that's where we pick them up
         pathPrefix("scjs")(getFromResourceDirectory("")) ~
+        pathPrefix("vidi") (getFromResource("web/index.html") )~
         pathPrefix("services") {
           path("board") {
             parameters('id, 'token) { (id: String, token: String) ⇒ {

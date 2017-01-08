@@ -23,9 +23,11 @@ class Node(val id: Future[Long])(
 
   type InternalDomainRef = BadActorRef[EventWrapper]
 
+  type NodeRef = BadActorRef[NodeEvent]
+
   import ExecutionContext.Implicits.global
 
-  val nodeRef: BadActorRef[NodeEvent] = realityConnection.concurrency.createSimpleActor(new NodeActor(this))
+  val nodeRef:NodeRef  = realityConnection.concurrency.createSimpleActor(new NodeActor(this))
 
   //node
   private var domainsManager = new DomainsManager
@@ -214,11 +216,11 @@ class Node(val id: Future[Long])(
     this.connections.toMap
   }
 
-  def registerDomainListener[O, X](listener: DomainListener[O, X], path: Seq[String]): Unit = {
+  private[events] def registerDomainListener[O, X](listener: DomainListener[O, X], path: Seq[String]): Unit = {
     domainsManager.filterDomains(path).foreach(d => d.send(RegisterListener[O, X](listener)))
   }
 
-  def registerDomainListener[O, X](listener: DomainListener[O, X], ref: DomainRef[_]): Unit = {
+  private def registerDomainListener[O, X](listener: DomainListener[O, X], ref: DomainRef[_]): Unit = {
     this.registerDomainListener(listener, ref.path)
   }
 

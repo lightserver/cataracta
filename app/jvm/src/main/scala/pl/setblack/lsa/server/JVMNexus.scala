@@ -3,14 +3,14 @@ package pl.setblack.lsa.server
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import pl.setblack.lsa.events.Node
+import pl.setblack.lsa.events.{Node, NodeRef}
 import pl.setblack.lsa.security.{KnownKey, SignedCertificate}
 
 import scala.util.{Failure, Success}
 
 class JVMNexus(rootCertificate: Option[SignedCertificate] = None, knownKey: Option[KnownKey] = None) {
 
-  def start(implicit  system : ActorSystem, materializer: ActorMaterializer ) : Node = {
+  def start(implicit  system : ActorSystem, materializer: ActorMaterializer ) : NodeRef = {
 
     import system.dispatcher
 
@@ -33,7 +33,7 @@ class JVMNexus(rootCertificate: Option[SignedCertificate] = None, knownKey: Opti
         println(s"Binding failed with ${e.getMessage}")
         system.shutdown()
     }
-    serverNode.mainNode
+    new NodeRef(serverNode.mainNode.nodeRef)
   }
 
 }
