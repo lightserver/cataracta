@@ -6,6 +6,8 @@ import pl.setblack.lsa.events.impl._
 import pl.setblack.lsa.io.DomainStorage
 import pl.setblack.lsa.os.Reality
 
+import scala.concurrent.Future
+
 case class DomainsManager(
                            private val domainRefs: Map[Seq[String], BadActorRef[EventWrapper]] = Map(),
                            private val messageListeners: Seq[MessageListener] = Seq()
@@ -29,15 +31,24 @@ case class DomainsManager(
     domainRefs contains (path)
   }
 
-  private[events] def filterDomains(path: Seq[String]): Seq[BadActorRef[EventWrapper]] = {
+  private[events] def filterDomains(path: Seq[String]): Seq[( Seq[String], BadActorRef[EventWrapper])] = {
     val res = this.domainRefs
-      .filter((v) => path.startsWith(v._1)).values.toSeq
+      .filter((v) => path.startsWith(v._1)).toSeq
     res
   }
 
-  private[events] def receiveLocalDomainMessage(msg: NodeMessage, ctx: EventContext) = {
+  private[events] def receiveLocalDomainMessage
+      (msg: NodeMessage,
+       ctx: Address => EventContext,
+       id : Future[Long]) = {
     messageListeners foreach (listener => listener.onMessage(msg))
-    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v, ctx))
+
+    filterDomains(msg.destination.path).foreach((v) => sendEvenToDomain(msg.event, v._2,
+      ctx(
+      Address(
+        target = if (id.isCompleted) Target(id.value.get.get) else Local,
+        path= v. _1)  ))
+    )
   }
 
   private[events] def resync(nodeId : Long) = {

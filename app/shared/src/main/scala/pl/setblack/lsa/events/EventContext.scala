@@ -18,16 +18,21 @@ abstract class EventContext {
 
   def createDomain[O, EVENT](path : Seq[String], domain : Domain[O, EVENT] ) : Option[DomainRef[EVENT]]
 
+  def getDomainRef[EVENT](addr : Address) (implicit converter: EventConverter[EVENT]) : DomainRef[EVENT]
+
   def isSecure(): Boolean
 
   def signedBy: Option[CertificateInfo] = None
 
   def connectionData: ConnectionData
+
+  def me : Address
 }
 
 class NodeEventContext(
                         private val parentNode: Node,
                         override val sender: Long,
+                        override val me : Address,
                         val connectionData: ConnectionData,
                         override val signedBy: Option[CertificateInfo]) extends EventContext {
   override def reply(eventContent: String, path: Seq[String]): Unit = {
@@ -46,9 +51,17 @@ class NodeEventContext(
   override def createDomain[O, EVENT](path: Seq[String], domain: Domain[O, EVENT]): Option[DomainRef[EVENT]] = {
     Some(parentNode.registerDomain(path, domain))
   }
+
+  override def getDomainRef[EVENT](addr: Address) (implicit converter: EventConverter[EVENT]): DomainRef[EVENT] = {
+    new DomainRef[EVENT](addr, parentNode.nodeRef)
+  }
+
+
 }
 
-class NullContext(val nodeRef: BadActorRef[NodeEvent]) extends EventContext {
+class NullContext(
+                   val nodeRef: BadActorRef[NodeEvent],
+                   override val me : Address) extends EventContext {
 
   def sender = -1
 
@@ -71,5 +84,9 @@ class NullContext(val nodeRef: BadActorRef[NodeEvent]) extends EventContext {
       path,
       nodeRef
     )(domain.eventConverter))
+  }
+
+  override def getDomainRef[EVENT](addr: Address) (implicit converter: EventConverter[EVENT]): DomainRef[EVENT] = {
+    new DomainRef[EVENT](addr, nodeRef)
   }
 }

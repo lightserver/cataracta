@@ -25,9 +25,12 @@ class AkkaActorCreator[E](val badActor: BadActor[E]) extends Creator[AkkaActorWr
 }
 
 class AkkaActorWrapper[E](val badActor : BadActor[E] ) extends  Actor {
+
+  val  selfRef = new AkkaActorRef[E](self)
+
   override def receive = {
     case x:Any => {
-      badActor.receive (x.asInstanceOf[E])
+      badActor.receive (x.asInstanceOf[E], selfRef)
     }
   }
 }

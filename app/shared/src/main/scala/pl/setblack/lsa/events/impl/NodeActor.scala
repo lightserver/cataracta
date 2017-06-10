@@ -1,13 +1,13 @@
 package pl.setblack.lsa.events.impl
 
-import pl.setblack.lsa.concurrency.BadActor
+import pl.setblack.lsa.concurrency.{BadActor, BadActorRef}
 import pl.setblack.lsa.events._
 import pl.setblack.lsa.secureDomain.RegisterSigner
 import pl.setblack.lsa.security.SigningId
 import slogging.{LazyLogging, Logger}
 
 class NodeActor(val node: Node) extends LazyLogging with BadActor[NodeEvent] {
-  override def receive(e: NodeEvent): Unit = {
+  override def receive(e: NodeEvent, self : BadActorRef[NodeEvent]): Unit = {
 
     e match {
       case content: NodeSendEventContent =>

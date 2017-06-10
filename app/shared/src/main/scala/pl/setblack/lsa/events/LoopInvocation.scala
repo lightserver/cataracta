@@ -7,7 +7,7 @@ class LoopInvocation(val target:Node) extends ProtocolBase {
       case signed : SignedEvent => Some(signed.signature.signedBy.info)
       case _ => None
     }
-    val ctx = new NodeEventContext( target, msg.event.sender, connectionData, certificate )
+    val ctx = (adr: Address) => new NodeEventContext(target, msg.event.sender, adr, connectionData, certificate )
     target.receiveMessageLocal(msg, ctx)
   }
 }

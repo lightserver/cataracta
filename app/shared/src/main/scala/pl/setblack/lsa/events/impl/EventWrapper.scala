@@ -25,3 +25,5 @@ case class RestoreDomainCommand(sync: RestoreDomain) extends EventWrapper
 
 case class RegisterListener[O, X](listener: DomainListener[O, X]) extends EventWrapper
 
+case object EndLoading extends EventWrapper
+

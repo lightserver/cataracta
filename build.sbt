@@ -15,7 +15,7 @@ val libName = "cataracta"
 scalaVersion in ThisBuild := "2.12.1"
 organization in ThisBuild := "pl.setblack.lsa"
 name in ThisBuild := libName
-version in ThisBuild := "0.98.1"
+version in ThisBuild := "0.98.1-SNAPSHOT"
 
 val app = crossProject.settings(
   isSnapshot := true,

@@ -217,7 +217,7 @@ class Node(val id: Future[Long])(
   }
 
   private[events] def registerDomainListener[O, X](listener: DomainListener[O, X], path: Seq[String]): Unit = {
-    domainsManager.filterDomains(path).foreach(d => d.send(RegisterListener[O, X](listener)))
+    domainsManager.filterDomains(path).foreach(d => d._2.send(RegisterListener[O, X](listener)))
   }
 
   private def registerDomainListener[O, X](listener: DomainListener[O, X], ref: DomainRef[_]): Unit = {
@@ -228,7 +228,7 @@ class Node(val id: Future[Long])(
     domainsManager.filterDomains(sync.domain).map(
       domainRef => {
         this.id onSuccess { case nodeId =>
-          domainRef.send(new ResyncDomainCommand(sync, nodeId))
+          domainRef._2.send(new ResyncDomainCommand(sync, nodeId))
         }
       }
     )
@@ -237,7 +237,7 @@ class Node(val id: Future[Long])(
 
   private def restoreDomain(serialized: RestoreDomain): Unit = {
     domainsManager.filterDomains(serialized.domain).foreach(domainRef => {
-      domainRef.send(new RestoreDomainCommand(serialized))
+      domainRef._2.send(new RestoreDomainCommand(serialized))
     })
   }
 
@@ -246,8 +246,8 @@ class Node(val id: Future[Long])(
     this.id onSuccess { case nodeId: Long =>
       domainsManager.filterDomains(path).foreach(domainRef => {
 
-        domainRef.send(LoadDomainCommand)
-        domainRef.send(SyncDomainCommand(nodeId, true))
+        domainRef._2.send(LoadDomainCommand)
+        domainRef._2.send(SyncDomainCommand(nodeId, true))
       })
     }
   }
@@ -261,7 +261,7 @@ class Node(val id: Future[Long])(
     this.connections.get(sender).foreach(nodeConnection => nodeConnection.setListeningTo(listen.domains))
   }
 
-  def processSysMessage(ev: Event, ctx: EventContext): Unit = {
+  def processSysMessage(ev: Event, ctx: Address => EventContext): Unit = {
 
     val ctrlEvent = read[ControlEvent](ev.content)
     this.id onSuccess {
@@ -270,7 +270,7 @@ class Node(val id: Future[Long])(
           ctrlEvent match {
             //does not make any sense now...
             case RegisteredClient(clientId, serverId, token) => println("registered as: " + id)
-            case sync: ResyncDomain => resyncDomain(sync, ctx.connectionData)
+            case sync: ResyncDomain => resyncDomain(sync, ctx(Address(System)).connectionData)
             case serialized: RestoreDomain => restoreDomain(serialized)
             case listen: ListenDomains => listenDomains(listen, ev.sender)
             case Ping => {
@@ -307,7 +307,8 @@ class Node(val id: Future[Long])(
     * Node receives message here.
     */
   private def receiveMessageUnsigned(msg: NodeMessage, connectionData: ConnectionData) = {
-    val ctx = new NodeEventContext(this, msg.event.sender, connectionData, None)
+    val ctx = ( adr:Address ) => new NodeEventContext(
+      this, msg.event.sender, adr, connectionData, None)
     receiveMessageLocal(msg, ctx)
     rerouteMsg(msg)
   }
@@ -327,7 +328,7 @@ class Node(val id: Future[Long])(
         makeSignedString(signed.content, signed.id, signed.sender, msg.destination))
     }).map {
       case (newSec, Some(x)) => {
-        val ctx = new NodeEventContext(this, signed.sender, connectionData, Some(x))
+        val ctx = (adr:Address) => new NodeEventContext(this, signed.sender, adr, connectionData, Some(x))
         receiveMessageLocal(msg, ctx)
         rerouteMsg(msg)
         newSec
@@ -354,12 +355,12 @@ class Node(val id: Future[Long])(
   }
 
 /** TODO: make private and change to actor receive */
-  def receiveMessageLocal(msg: NodeMessage, ctx: EventContext) = {
+  def receiveMessageLocal(msg: NodeMessage, ctx: Address => EventContext) = {
     if (msg.destination.target == System) {
       processSysMessage(msg.event, ctx)
     } else {
       logger.debug(s"Received event[${msg.event.id}]")
-      domainsManager.receiveLocalDomainMessage(msg, ctx)
+      domainsManager.receiveLocalDomainMessage(msg, ctx, this.id)
     }
   }
 
